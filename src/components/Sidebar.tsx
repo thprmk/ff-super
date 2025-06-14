@@ -21,6 +21,9 @@ const Sidebar = () => {
   const pathname = usePathname();
   const { data: session } = useSession();
 
+  console.log(session, 'Session Data'); 
+  
+
   const handleSignOut = () => {
     signOut({ callbackUrl: '/login' });
   };
@@ -177,7 +180,7 @@ const Sidebar = () => {
                   {session.user.name}
                 </div>
                 <div className="text-xs text-gray-500 truncate">
-                  {session.user.role.displayName || session.user.role.name}
+                  {session.user.role.name || session.user.role.name}
                 </div>
               </div>
             </div>

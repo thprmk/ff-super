@@ -39,3 +39,6 @@ const Appointment: Model<IAppointment> =
   mongoose.model<IAppointment>("Appointment", AppointmentSchema);
 
 export default Appointment;
+
+
+
