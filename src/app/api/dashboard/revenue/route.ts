@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectToDatabase from '@/lib/mongodb';
 import Invoice from '@/models/invoice';
-import Appointment from '@/models/appointment';
+import Appointment from '@/models/Appointment';
 
 export async function GET() {
   try {
