@@ -122,5 +122,5 @@ appointmentSchema.index({ stylistId: 1, date: 1 });
 appointmentSchema.index({ customerId: 1, date: -1 });
 appointmentSchema.index({ status: 1, appointmentType: 1 });
 
-const Appointment = models.Appointment || model('Appointment', appointmentSchema);
-export default Appointment;
+const appointment = models.Appointment || model('Appointment', appointmentSchema);
+export default appointment;

@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Customer from '@/models/customermodel';
-import Appointment from '@/models/Appointment';
+import Appointment from '@/models/appointment';
 import ServiceItem from '@/models/ServiceItem';
 import Stylist from '@/models/Stylist';
 import LoyaltyTransaction from '@/models/loyaltyTransaction';

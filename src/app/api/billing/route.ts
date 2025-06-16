@@ -1,7 +1,7 @@
 // app/api/billing/route.ts - CREATE INVOICE AND UPDATE APPOINTMENT
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
-import Appointment from '@/models/Appointment';
+import Appointment from '@/models/appointment';
 import Invoice from '@/models/invoice';
 import Stylist from '@/models/Stylist';
 
