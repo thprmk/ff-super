@@ -1,4 +1,4 @@
-// app/api/billing/search-items/route.ts - INCLUDE MEMBERSHIP RATES
+// app/api/billing/search-items/route.ts
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import ServiceItem from '@/models/ServiceItem';
@@ -10,25 +10,36 @@ export async function GET(req: Request) {
     
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('query');
-
+    
     if (!query || query.trim().length < 2) {
       return NextResponse.json({ success: true, items: [] });
     }
 
     const searchRegex = new RegExp(query, 'i');
 
+    // Search both services and products in parallel
     const [services, products] = await Promise.all([
-      ServiceItem.find({ name: { $regex: searchRegex } })
-        .select('name price membershipRate') // Include membership rate
-        .limit(10)
-        .lean(),
+      // Search services
+      ServiceItem.find({
+        name: { $regex: searchRegex }
+      })
+      .select('name price membershipRate')
+      .limit(5)
+      .lean(),
       
-      Product.find({ name: { $regex: searchRegex } })
-        .select('name price')
-        .limit(10)
-        .lean()
+      // Search products for retail
+      Product.find({
+        name: { $regex: searchRegex },
+        type: 'Retail' // Only retail products should be sold to customers
+      })
+      .populate('brand', 'name')
+      .populate('subCategory', 'name')
+      .select('name price sku unit')
+      .limit(5)
+      .lean()
     ]);
 
+    // Format the results
     const items = [
       ...services.map(service => ({
         id: service._id.toString(),
@@ -39,19 +50,23 @@ export async function GET(req: Request) {
       })),
       ...products.map(product => ({
         id: product._id.toString(),
-        name: product.name,
+        name: `${product.name} (${product.unit})`,
         price: product.price,
-        type: 'product' as const
+        type: 'product' as const,
+        sku: product.sku
       }))
     ];
 
-    return NextResponse.json({ success: true, items });
+    return NextResponse.json({ 
+      success: true, 
+      items 
+    });
 
   } catch (error: any) {
-    console.error("API Error searching items:", error);
+    console.error('API Error searching billing items:', error);
     return NextResponse.json({ 
       success: false, 
-      message: error.message 
+      message: 'Failed to search items' 
     }, { status: 500 });
   }
 }

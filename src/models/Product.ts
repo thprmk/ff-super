@@ -27,6 +27,8 @@ export interface IProduct extends Document {
   quantity: number;
   stockedDate: Date;
   unit: string;
+  quantityPerItem:number;
+  quantityNeededPerService:number;
 }
 
 /**
@@ -86,6 +88,17 @@ const ProductSchema: Schema<IProduct> = new Schema({
     required: true, 
     trim: true 
   },
+    quantityPerItem: { 
+    type: Number, 
+    required: true, 
+    min: 0 
+  },
+      quantityNeededPerService: { 
+    type: Number, 
+    required: true, 
+    min: 0 
+  },
+
 }, { timestamps: true });
 
 /**

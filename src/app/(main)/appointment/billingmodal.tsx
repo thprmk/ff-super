@@ -69,7 +69,7 @@ const CustomerHistoryModal: React.FC<{
 
   const fetchCustomerHistory = async () => {
     if (!customer?.phoneNumber) return;
-    
+
     setIsLoading(true);
     try {
       const res = await fetch(`/api/customer/search?query=${customer.phoneNumber}&details=true`);
@@ -118,9 +118,13 @@ const CustomerHistoryModal: React.FC<{
                 <div className="text-2xl font-bold text-blue-600">{customerDetails.appointmentHistory.length}</div>
                 <div className="text-sm text-gray-600">Total Visits</div>
               </div>
+
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
-                  ₹{customerDetails.appointmentHistory.reduce((sum: number, apt: any) => sum + apt.totalAmount, 0).toFixed(0)}
+                  ₹{customerDetails.appointmentHistory
+                    .filter((apt: any) => apt.status === 'Paid')
+                    .reduce((sum: number, apt: any) => sum + apt.totalAmount, 0)
+                    .toFixed(0)}
                 </div>
                 <div className="text-sm text-gray-600">Total Spent</div>
               </div>
@@ -205,7 +209,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
   useEffect(() => {
     if (isOpen && appointment) {
       console.log('🔥 Initializing billing modal with appointment:', appointment);
-      
+
       // Reset all states
       setError(null);
       setNotes('');
@@ -213,20 +217,20 @@ const BillingModal: React.FC<BillingModalProps> = ({
       setSearchQuery('');
       setSearchResults([]);
       setMembershipGranted(false);
-      
+
       // Set customer membership status
       const isMember = customer?.isMembership || false;
       setCustomerIsMember(isMember);
       setShowMembershipGrant(!isMember);
-      
+
       // === CRITICAL FIX: PROPERLY INITIALIZE BILL ITEMS ===
       if (appointment.serviceIds && appointment.serviceIds.length > 0) {
         const initialItems = appointment.serviceIds.map(service => {
           console.log('🔥 Processing service for bill:', service);
-          
+
           const hasDiscount = isMember && service.membershipRate;
           const finalPrice = hasDiscount ? service.membershipRate : service.price;
-          
+
           return {
             itemType: 'service' as const,
             itemId: service._id,
@@ -237,7 +241,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
             finalPrice: finalPrice
           };
         });
-        
+
         console.log('🔥 Setting initial bill items:', initialItems);
         setBillItems(initialItems);
       } else {
@@ -252,7 +256,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
 
   // Recalculate prices when membership status changes
   useEffect(() => {
-    setBillItems(prevItems => 
+    setBillItems(prevItems =>
       prevItems.map(item => {
         if (item.itemType === 'service' && customerIsMember && item.membershipRate) {
           return { ...item, finalPrice: item.membershipRate * item.quantity };
@@ -314,13 +318,13 @@ const BillingModal: React.FC<BillingModalProps> = ({
 
   const handleQuantityChange = (index: number, newQuantity: number) => {
     if (newQuantity < 1) return;
-    
+
     setBillItems(prev => prev.map((item, idx) => {
       if (idx === index) {
         const isService = item.itemType === 'service';
         const hasDiscount = customerIsMember && isService && item.membershipRate;
         const unitPrice = hasDiscount ? item.membershipRate! : item.unitPrice;
-        
+
         return {
           ...item,
           quantity: newQuantity,
@@ -358,11 +362,11 @@ const BillingModal: React.FC<BillingModalProps> = ({
 
     billItems.forEach(item => {
       const isService = item.itemType === 'service';
-      
+
       if (isService) {
         serviceTotal += item.finalPrice;
         originalTotal += item.unitPrice * item.quantity;
-        
+
         if (customerIsMember && item.membershipRate) {
           membershipSavings += (item.unitPrice - item.membershipRate) * item.quantity;
         }
@@ -373,13 +377,13 @@ const BillingModal: React.FC<BillingModalProps> = ({
     });
 
     const grandTotal = serviceTotal + productTotal;
-    
-    return { 
-      serviceTotal, 
-      productTotal, 
+
+    return {
+      serviceTotal,
+      productTotal,
       originalTotal,
-      grandTotal, 
-      membershipSavings 
+      grandTotal,
+      membershipSavings
     };
   }, [billItems, customerIsMember]);
 
@@ -409,7 +413,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
           membershipRate: item.membershipRate,
           quantity: item.quantity,
           finalPrice: item.finalPrice,
-          membershipDiscount: item.membershipRate && customerIsMember ? 
+          membershipDiscount: item.membershipRate && customerIsMember ?
             (item.unitPrice - item.membershipRate) * item.quantity : 0
         })),
         serviceTotal,
@@ -511,7 +515,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
               <h3 className="text-lg font-medium text-gray-700 mb-3">
                 Current Bill Items ({billItems.length})
               </h3>
-              
+
               {billItems.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
                   <p className="text-lg">No items in bill</p>
@@ -541,9 +545,8 @@ const BillingModal: React.FC<BillingModalProps> = ({
                             <td className="px-4 py-3">
                               <div>
                                 <span className="font-medium">{item.name}</span>
-                                <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
-                                  isService ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                                }`}>
+                                <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${isService ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                                  }`}>
                                   {item.itemType}
                                 </span>
                               </div>
@@ -618,11 +621,10 @@ const BillingModal: React.FC<BillingModalProps> = ({
                         <div className="flex justify-between items-center">
                           <div>
                             <span>{item.name}</span>
-                            <span className={`text-xs ml-2 px-1.5 py-0.5 rounded-full ${
-                              item.type === 'service'
+                            <span className={`text-xs ml-2 px-1.5 py-0.5 rounded-full ${item.type === 'service'
                                 ? 'bg-blue-100 text-blue-800'
                                 : 'bg-green-100 text-green-800'
-                            }`}>
+                              }`}>
                               {item.type}
                             </span>
                           </div>
@@ -709,7 +711,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
                   </>
                 )}
               </div>
-              
+
               {/* Grand Total */}
               <div className="text-right">
                 <div className="text-2xl font-bold text-gray-900">
@@ -718,7 +720,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
                 </div>
               </div>
             </div>
-            
+
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={onClose}

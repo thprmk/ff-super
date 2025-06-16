@@ -1,24 +1,9 @@
-// components/BookAppointmentForm.tsx - FIXED VERSION
+
+// components/BookAppointmentForm.tsx
 'use client';
 
-import React, {
-  useState,
-  useEffect,
-  FormEvent,
-  useCallback,
-  useRef
-} from 'react';
-import {
-  ChevronDownIcon,
-  XMarkIcon,
-  UserCircleIcon,
-  CalendarDaysIcon,
-  SparklesIcon,
-  TagIcon,
-  GiftIcon,
-  ClockIcon,
-  EyeIcon
-} from '@heroicons/react/24/solid';
+import React, { useState, useEffect, FormEvent, useCallback, useRef } from 'react';
+import { ChevronDownIcon, XMarkIcon, UserCircleIcon, CalendarDaysIcon, SparklesIcon, TagIcon, GiftIcon, ClockIcon, EyeIcon } from '@heroicons/react/24/solid';
 import { toast } from 'react-toastify';
 
 // ===================================================================================
@@ -85,6 +70,8 @@ interface BookAppointmentFormProps {
   onBookAppointment: (data: NewBookingData) => Promise<void>;
 }
 
+
+
 // ===================================================================================
 //  CUSTOMER HISTORY MODAL
 // ===================================================================================
@@ -94,6 +81,10 @@ const CustomerHistoryModal: React.FC<{
   customer: CustomerDetails | null;
 }> = ({ isOpen, onClose, customer }) => {
   if (!isOpen || !customer) return null;
+
+  const totalSpent = customer.appointmentHistory
+  .filter(apt => apt.status === 'Paid')
+  .reduce((sum, apt) => sum + apt.totalAmount, 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -125,9 +116,12 @@ const CustomerHistoryModal: React.FC<{
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">
-              ₹{customer.appointmentHistory.reduce((sum, apt) => sum + apt.totalAmount, 0).toFixed(0)}
+              ₹{customer.appointmentHistory
+                .filter(apt => apt.status === 'Paid')
+                .reduce((sum, apt) => sum + apt.totalAmount, 0)
+                .toFixed(0)}
             </div>
-            <div className="text-sm text-gray-600">Total Spent</div>
+            <div className="text-sm text-gray-600">Total Spent </div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-yellow-600">{customer.loyaltyPoints || 0}</div>
@@ -237,7 +231,6 @@ const CustomerDetailPanel: React.FC<{
 
   return (
     <div className="h-full flex flex-col">
-      {/* Customer Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-gray-900">{customer.name}</h3>
         <button
@@ -249,7 +242,6 @@ const CustomerDetailPanel: React.FC<{
         </button>
       </div>
 
-      {/* Customer Info */}
       <div className="space-y-3 text-sm">
         <div className="flex items-center gap-3">
           <SparklesIcon className="w-5 h-5 text-yellow-500" />
@@ -286,7 +278,6 @@ const CustomerDetailPanel: React.FC<{
         </div>
       </div>
 
-      {/* Membership Action */}
       <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
         <div className="flex items-center justify-between">
           <div>
@@ -295,8 +286,8 @@ const CustomerDetailPanel: React.FC<{
               <span className="font-semibold text-yellow-800">Membership Status</span>
             </div>
             <p className="text-sm text-yellow-700">
-              {customer.isMember ? 
-                'Customer gets discounted rates on all services' : 
+              {customer.isMember ?
+                'Customer gets discounted rates on all services' :
                 'Grant membership for special pricing'
               }
             </p>
@@ -312,7 +303,6 @@ const CustomerDetailPanel: React.FC<{
         </div>
       </div>
 
-      {/* Recent History Preview */}
       <div className="mt-6 flex-1">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-base font-semibold text-gray-800">Recent Visits</h4>
@@ -415,6 +405,26 @@ export default function BookAppointmentForm({
     return `${hours}:${minutes}`;
   };
 
+  // Calculate totals
+  const calculateTotals = useCallback(() => {
+    let total = 0;
+    let membershipSavings = 0;
+
+    selectedServices.forEach(service => {
+      const isMember = selectedCustomerDetails?.isMember || false;
+      const hasDiscount = isMember && service.membershipRate;
+      const price = hasDiscount ? service.membershipRate! : service.price;
+      total += price;
+      if (hasDiscount) {
+        membershipSavings += service.price - service.membershipRate!;
+      }
+    });
+
+    return { total, membershipSavings };
+  }, [selectedServices, selectedCustomerDetails?.isMember]);
+
+  const { total, membershipSavings } = calculateTotals();
+
   // Initialize form
   useEffect(() => {
     if (!isOpen) return;
@@ -434,14 +444,11 @@ export default function BookAppointmentForm({
         const res = await fetch('/api/service-items');
         const data = await res.json();
         if (data.success) {
-          console.log('Fetched services:', data.services);
           setAllServices(data.services);
         } else {
-          console.error('Failed to fetch services:', data.error);
           setFormError('Failed to load services. Please refresh the page.');
         }
       } catch (e) {
-        console.error('Service fetch error:', e);
         setFormError('Failed to load services. Please refresh the page.');
       }
     };
@@ -472,19 +479,17 @@ export default function BookAppointmentForm({
       const serviceQuery = formData.serviceIds.map((id) => `serviceIds=${id}`).join('&');
       const res = await fetch(`/api/stylists/available?date=${formData.date}&time=${formData.time}&${serviceQuery}`);
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Could not fetch stylists.');
       }
 
-      console.log('Available stylists:', data.stylists);
       setAvailableStylists(data.stylists);
 
       if (formData.stylistId && !data.stylists.some((s: any) => s._id === formData.stylistId)) {
         setFormData((prev) => ({ ...prev, stylistId: '' }));
       }
     } catch (err: any) {
-      console.error('Stylist fetch error:', err);
       setFormError(err.message);
       setAvailableStylists([]);
     } finally {
@@ -541,11 +546,8 @@ export default function BookAppointmentForm({
     setCustomerSearchResults([]);
 
     try {
-      console.log('Fetching customer details for phone:', phone);
       const res = await fetch(`/api/customer/search?query=${encodeURIComponent(phone.trim())}&details=true`);
       const data = await res.json();
-
-      console.log('Customer search response:', data);
 
       if (res.ok && data.success && data.customer) {
         const cust = data.customer;
@@ -558,9 +560,7 @@ export default function BookAppointmentForm({
         }));
         setSelectedCustomerDetails(cust);
         setIsCustomerSelected(true);
-        console.log('Customer details set:', cust);
       } else {
-        console.log('No customer found, clearing selection');
         setSelectedCustomerDetails(null);
         setIsCustomerSelected(false);
         if (nameInputRef.current) {
@@ -568,7 +568,6 @@ export default function BookAppointmentForm({
         }
       }
     } catch (err) {
-      console.error('Failed to fetch customer details:', err);
       setSelectedCustomerDetails(null);
       setIsCustomerSelected(false);
     } finally {
@@ -610,46 +609,41 @@ export default function BookAppointmentForm({
     setFormData((prev) => ({ ...prev, ...resetData }));
   };
 
+  const handleToggleMembership = async () => {
+    if (!selectedCustomerDetails) return;
 
+    try {
+      const response = await fetch(`/api/customer/${selectedCustomerDetails._id}/toggle-membership`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isMembership: !selectedCustomerDetails.isMember })
+      });
 
-const handleToggleMembership = async () => {
-  if (!selectedCustomerDetails) return;
+      const result = await response.json();
+      if (result.success) {
+        setSelectedCustomerDetails(prev => prev ? {
+          ...prev,
+          isMember: !prev.isMember,
+          membershipDetails: !prev.isMember ? {
+            planName: 'Member',
+            status: 'Active'
+          } : null
+        } : null);
 
-  try {
-    const response = await fetch(`/api/customer/${selectedCustomerDetails._id}/toggle-membership`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isMembership: !selectedCustomerDetails.isMember })
-    });
+        setTimeout(() => {
+          fetchAndSetCustomerDetails(selectedCustomerDetails.phoneNumber);
+        }, 500);
 
-    const result = await response.json();
-    if (result.success) {
-      // === FIX: Immediately update the customer details state ===
-      setSelectedCustomerDetails(prev => prev ? {
-        ...prev,
-        isMember: !prev.isMember,
-        membershipDetails: !prev.isMember ? {
-          planName: 'Member',
-          status: 'Active'
-        } : null
-      } : null);
-
-      // Also refresh from server to be sure
-      setTimeout(() => {
-        fetchAndSetCustomerDetails(selectedCustomerDetails.phoneNumber);
-      }, 500);
-
-      toast.success(
-        selectedCustomerDetails.isMember ? 
-        'Membership removed successfully!' : 
-        'Membership granted successfully!'
-      );
+        toast.success(
+          selectedCustomerDetails.isMember ?
+            'Membership removed successfully!' :
+            'Membership granted successfully!'
+        );
+      }
+    } catch (error) {
+      toast.error('Failed to update membership status');
     }
-  } catch (error) {
-    console.error('Failed to toggle membership:', error);
-    toast.error('Failed to update membership status');
-  }
-};
+  };
 
   const handleAddService = (serviceId: string) => {
     if (!serviceId) return;
@@ -695,11 +689,9 @@ const handleToggleMembership = async () => {
         ...formData,
         appointmentType: formData.status === 'Checked-In' ? 'Offline' : 'Online'
       };
-      
-      console.log('Submitting appointment:', appointmentData);
+
       await onBookAppointment(appointmentData);
     } catch (error: any) {
-      console.error('Appointment submission error:', error);
       setFormError(error.message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
@@ -941,6 +933,23 @@ const handleToggleMembership = async () => {
                     })}
                   </div>
 
+                  {/* Total Amount Display */}
+                  {selectedServices.length > 0 && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+                        <div className="text-right">
+                          <span className="text-lg font-bold text-green-600">₹{total.toFixed(2)}</span>
+                          {membershipSavings > 0 && (
+                            <div className="text-xs text-green-500 mt-1">
+                              Saved ₹{membershipSavings.toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="relative mt-5">
                     <label htmlFor="stylist" className="block text-sm font-medium mb-1.5">
                       Stylist <span className="text-red-500">*</span>
@@ -1013,8 +1022,8 @@ const handleToggleMembership = async () => {
             </form>
 
             <div className="lg:col-span-1 lg:border-l lg:pl-8 mt-8 lg:mt-0">
-              <CustomerDetailPanel 
-                customer={selectedCustomerDetails} 
+              <CustomerDetailPanel
+                customer={selectedCustomerDetails}
                 isLoading={isLoadingCustomerDetails}
                 onToggleMembership={handleToggleMembership}
                 onViewFullHistory={() => setShowCustomerHistory(true)}
@@ -1024,7 +1033,6 @@ const handleToggleMembership = async () => {
         </div>
       </div>
 
-      {/* Customer History Modal */}
       <CustomerHistoryModal
         isOpen={showCustomerHistory}
         onClose={() => setShowCustomerHistory(false)}

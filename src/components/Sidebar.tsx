@@ -46,7 +46,7 @@ const Sidebar = () => {
     { href: '/dashboard', label: 'Dashboard', icon: HomeIcon, show: canAccessDashboard },
     { href: '/appointment', label: 'Appointments', icon: CalendarDaysIcon, show: canAccessAppointments },
     { href: '/crm', label: 'Customers', icon: UserGroupIcon, show: canAccessCustomers },
-    { href: '/billing', label: 'Billing', icon: CreditCardIcon, show: canAccessBilling },
+    // { href: '/billing', label: 'Billing', icon: CreditCardIcon, show: canAccessBilling },
     // This was '/shop' in one file and not present in the other. I've used '/store' as that's the common name.
     { href: '/shop', label: 'Shop', icon: BuildingStorefrontIcon, show: canAccessStore },
     { href: '/eb-upload', label: 'EB Upload', icon: LightBulbIcon, show: canAccessEBUpload },

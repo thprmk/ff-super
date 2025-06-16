@@ -1,10 +1,10 @@
-// app/api/appointment/route.ts - FIX THE POPULATION
+// app/api/appointment/route.ts
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Appointment from '@/models/Appointment';
 import Customer from '@/models/customermodel';
 import Stylist from '@/models/Stylist';
-import ServiceItem from '@/models/ServiceItem'; // Changed from Service
+import ServiceItem from '@/models/ServiceItem';
 import mongoose from 'mongoose';
 
 export async function GET(req: Request) {
@@ -78,11 +78,10 @@ export async function GET(req: Request) {
     const totalAppointments = totalAppointmentsResult.length > 0 ? totalAppointmentsResult[0].total : 0;
     const totalPages = Math.ceil(totalAppointments / limit);
     
-    // === FIX: Populate ServiceItem instead of Service ===
     const appointments = await Appointment.populate(results, {
       path: 'serviceIds',
       model: ServiceItem,
-      select: 'name price duration' // Use 'duration' instead of 'durationMinutes'
+      select: 'name price duration membershipRate' // Include membershipRate
     });
 
     const formattedAppointments = appointments.map(apt => ({
@@ -90,7 +89,13 @@ export async function GET(req: Request) {
       id: apt._id.toString(),
       customerId: apt.customerInfo,
       stylistId: apt.stylistInfo,
+      finalAmount: apt.finalAmount, // Ensure finalAmount is included
+      membershipDiscount: apt.membershipDiscount // Ensure membershipDiscount is included
     }));
+
+    console.log("API Response - Appointments:", {
+      formattedAppointments});
+    
 
     return NextResponse.json({
       success: true,
@@ -132,13 +137,6 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // === FIX: Calculate duration using ServiceItem ===
-    const services = await ServiceItem.find({ 
-      _id: { $in: serviceIds } 
-    }).select('duration'); // Use 'duration' field
-
-    const estimatedDuration = services.reduce((total, service) => total + service.duration, 0);
-
     // Find or create customer
     let customerDoc = await Customer.findOne({ phoneNumber: phoneNumber.trim() });
     if (!customerDoc) {
@@ -148,6 +146,13 @@ export async function POST(req: Request) {
         email 
       });
     }
+
+    // Calculate duration and totals
+    const services = await ServiceItem.find({ 
+      _id: { $in: serviceIds } 
+    }).select('duration price membershipRate');
+
+    const estimatedDuration = services.reduce((total, service) => total + service.duration, 0);
 
     // Create appointment
     const appointmentData: any = {
@@ -163,26 +168,23 @@ export async function POST(req: Request) {
       estimatedDuration: estimatedDuration
     };
 
-    // Set timestamps based on status
+    // Calculate totals using model method
+    const newAppointment = new Appointment(appointmentData);
+    const { grandTotal, membershipSavings } = await newAppointment.calculateTotal();
+    
+    appointmentData.finalAmount = grandTotal;
+    appointmentData.membershipDiscount = membershipSavings;
+
     if (status === 'Checked-In') {
       appointmentData.checkInTime = new Date();
     }
 
-    const newAppointment = await Appointment.create(appointmentData);
+    const createdAppointment = await Appointment.create(appointmentData);
 
-    // Lock stylist if checked-in
-    if (status === 'Checked-In') {
-      const stylist = await Stylist.findById(stylistId);
-      if (stylist && stylist.lockStylist) {
-        await stylist.lockStylist(newAppointment._id);
-      }
-    }
-
-    // === FIX: Populate with ServiceItem ===
-    const populatedAppointment = await Appointment.findById(newAppointment._id)
-      .populate({ path: 'customerId', select: 'name phoneNumber' })
+    const populatedAppointment = await Appointment.findById(createdAppointment._id)
+      .populate({ path: 'customerId', select: 'name phoneNumber isMembership' })
       .populate({ path: 'stylistId', select: 'name' })
-      .populate({ path: 'serviceIds', select: 'name price duration' });
+      .populate({ path: 'serviceIds', select: 'name price duration membershipRate' });
 
     return NextResponse.json({ 
       success: true, 

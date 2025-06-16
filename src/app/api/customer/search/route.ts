@@ -1,4 +1,4 @@
-// app/api/customer/search/route.ts - UPDATED TO INCLUDE ALL APPOINTMENT STATUSES
+// app/api/customer/search/route.ts - UPDATED VERSION
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Customer from '@/models/customermodel';
@@ -37,10 +37,10 @@ export async function GET(req: Request) {
       }
 
       const [appointmentHistory, loyaltyData] = await Promise.all([
-        // === CHANGED: Get ALL appointments, not just 'Paid' ones ===
+        // Get ALL appointments for history display
         Appointment.find({ customerId: customer._id })
           .sort({ date: -1 })
-          .limit(20) // Get more history
+          .limit(20)
           .populate({ path: 'stylistId', model: Stylist, select: 'name' })
           .populate({ path: 'serviceIds', model: ServiceItem, select: 'name' })
           .lean(),
@@ -62,6 +62,11 @@ export async function GET(req: Request) {
 
       const calculatedLoyaltyPoints = loyaltyData.length > 0 ? loyaltyData[0].totalPoints : 0;
 
+      // Calculate total spent ONLY from paid appointments
+      const totalSpent = appointmentHistory
+        .filter(apt => (apt as any).status === 'Paid')
+        .reduce((sum, apt) => sum + ((apt as any).finalAmount || (apt as any).amount || 0), 0);
+
       const customerDetails = {
         ...customer,
         _id: customer._id.toString(),
@@ -72,13 +77,14 @@ export async function GET(req: Request) {
         } : null,
         loyaltyPoints: calculatedLoyaltyPoints,
         lastVisit: appointmentHistory.length > 0 ? (appointmentHistory[0] as any).date : null,
+        totalSpent: totalSpent, // Add total spent field
         appointmentHistory: appointmentHistory.map(apt => ({
           _id: (apt as any)._id.toString(),
           date: (apt as any).date,
           services: ((apt as any).serviceIds || []).map((s: any) => s.name),
-          totalAmount: (apt as any).finalAmount || (apt as any).amount || 0, // Use finalAmount if available
+          totalAmount: (apt as any).finalAmount || (apt as any).amount || 0,
           stylistName: (apt as any).stylistId?.name || 'N/A',
-          status: (apt as any).status || 'Unknown' // === ADDED: Include status ===
+          status: (apt as any).status || 'Unknown'
         }))
       };
 

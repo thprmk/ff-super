@@ -31,12 +31,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         };
         
         // Lock the stylist
-        if (appointment.stylistId) {
-          const stylist = await Stylist.findById(appointment.stylistId._id);
-          if (stylist) {
-            await stylist.lockStylist(appointment._id);
-          }
-        }
+        // if (appointment.stylistId) {
+        //   const stylist = await Stylist.findById(appointment.stylistId._id);
+        //   if (stylist) {
+        //     await stylist.lockStylist(appointment._id);
+        //   }
+        // }
         break;
 
       case 'check-out':
@@ -56,12 +56,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         };
         
         // Unlock the stylist
-        if (appointment.stylistId) {
-          const stylist = await Stylist.findById(appointment.stylistId._id);
-          if (stylist) {
-            await stylist.unlockStylist();
-          }
-        }
+        // if (appointment.stylistId) {
+        //   const stylist = await Stylist.findById(appointment.stylistId._id);
+        //   if (stylist) {
+        //     await stylist.unlockStylist();
+        //   }
+        // }
         break;
 
       case 'cancel':
@@ -76,12 +76,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         };
         
         // Unlock the stylist if they were locked
-        if (appointment.status === 'Checked-In' && appointment.stylistId) {
-          const stylist = await Stylist.findById(appointment.stylistId._id);
-          if (stylist) {
-            await stylist.unlockStylist();
-          }
-        }
+        // if (appointment.status === 'Checked-In' && appointment.stylistId) {
+        //   const stylist = await Stylist.findById(appointment.stylistId._id);
+        //   if (stylist) {
+        //     await stylist.unlockStylist();
+        //   }
+        // }
         break;
 
       case 'mark-paid':

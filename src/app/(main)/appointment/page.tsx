@@ -116,6 +116,9 @@ export default function AppointmentPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalAppointmentsCount, setTotalAppointmentsCount] = useState(0);
 
+  console.log(allAppointments);
+  
+
   const fetchAppointments = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -256,7 +259,7 @@ export default function AppointmentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/30 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50/30 p-4 md:p-0">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Appointments</h1>
@@ -321,6 +324,7 @@ export default function AppointmentPage() {
                   <th className="px-6 py-3">Service(s)</th>
                   <th className="px-6 py-3">Stylist</th>
                   <th className="px-6 py-3">Date & Time</th>
+                                    <th className="px-6 py-3">Appointment Time</th>
                   <th className="px-6 py-3">Type</th>
                   <th className="px-6 py-3">Status</th>
                   <th className="px-6 py-3">Amount</th> {/* NEW COLUMN */}
@@ -349,14 +353,22 @@ export default function AppointmentPage() {
                       <td className="px-6 py-4">{serviceNames}</td>
                       <td className="px-6 py-4">
                         <div>{stylistName}</div>
-                        {!appointment.stylistId?.isAvailable && appointment.status === 'Checked-In' && (
+                        {/* {!appointment.stylistId?.isAvailable && appointment.status === 'Checked-In' && (
                           <div className="text-xs text-red-500">🔒 Busy</div>
-                        )}
+                        )} */}
                       </td>
                       <td className="px-6 py-4">
                         <div>{formatDate(appointment.date)}</div>
                         <div className="text-xs text-gray-500">{formatTime(appointment.time)}</div>
                       </td>
+                      {
+                         appointment?.status=="Appointment"?<td className="px-6 py-4">
+                        <div>{formatDate(appointment.appointmentTime)}</div>
+                        <div className="text-xs text-gray-500">{formatTime(appointment.appointmentTime)}</div>
+                      </td>:<td className="px-6 py-4">
+                       -
+                      </td>
+                      }
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${appointment.appointmentType === 'Online'
                           ? 'bg-blue-100 text-blue-800'
@@ -365,7 +377,7 @@ export default function AppointmentPage() {
                           {appointment.appointmentType}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-2  py-4">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
                           {appointment.status}
                         </span>
