@@ -1,14 +1,26 @@
 'use client';
-export const dynamic = 'force-dynamic';
-import SignupForm from '@/components/SignupForm';
 
-export default function SignupPage() {
+import { useState } from 'react';
+
+export default function SignupForm() {
+  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Submit logic here
+    console.log(formData);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white shadow-md rounded-xl p-8 w-full max-w-lg">
-        <h1 className="text-2xl font-bold mb-6 text-center">Create an Account</h1>
-        <SignupForm />
-      </div>
-    </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <input name="name" onChange={handleChange} placeholder="Name" className="w-full border p-2 rounded" />
+      <input name="email" onChange={handleChange} placeholder="Email" className="w-full border p-2 rounded" />
+      <input name="password" type="password" onChange={handleChange} placeholder="Password" className="w-full border p-2 rounded" />
+      <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Sign Up</button>
+    </form>
   );
 }
