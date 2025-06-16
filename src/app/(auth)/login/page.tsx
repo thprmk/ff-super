@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { signIn, getSession, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Suspense, useEffect } from 'react';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,13 +60,12 @@ export default function LoginPage() {
 
   return (
     <>
-      <Suspense>
+      <Suspense fallback={null}>
         <LoginRedirector />
       </Suspense>
 
       <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
-          {/* Header */}
           <div className="text-center">
             <div className="mx-auto h-16 w-16 bg-black rounded-full flex items-center justify-center">
               <span className="text-white text-2xl font-bold">FF</span>
@@ -80,7 +78,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Form */}
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
@@ -148,7 +145,6 @@ export default function LoginPage() {
             </div>
           </form>
 
-          {/* Demo Credentials (Remove in production) */}
           <div className="mt-6 p-4 bg-gray-50 rounded-md">
             <h3 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h3>
             <p className="text-xs text-gray-600">
