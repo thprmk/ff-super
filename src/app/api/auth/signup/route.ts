@@ -4,7 +4,7 @@ import connectToDatabase from '@/lib/mongodb';
 import User from '@/models/user';
 import Role from '@/models/role';
 
-export default async function POST(request: Request) {
+export async function POST(request: Request) {
   try {
     await connectToDatabase();
     
@@ -40,7 +40,7 @@ export default async function POST(request: Request) {
       });
     }
 
-    const user = await User.create({
+    await User.create({
       name,
       email: email.toLowerCase(),
       password,

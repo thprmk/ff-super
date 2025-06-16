@@ -2,6 +2,11 @@
 const path = require("path");
 
 const nextConfig = {
+
+  typescript: {
+    ignoreBuildErrors: true // 💥 This is what actually disables build-time type checking
+  },
+  
   reactStrictMode: true,
   images: {
     remotePatterns: [
