@@ -20,6 +20,9 @@ import {
 
 const Sidebar = () => {
   const pathname = usePathname();
+  if (pathname === '/login' || pathname === '/signup') {
+    return null; 
+  }
   const { data: session } = useSession();
 
   const handleSignOut = () => {

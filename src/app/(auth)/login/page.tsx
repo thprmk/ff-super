@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { signIn, getSession, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import {EyeIcon, EyeSlashIcon} from '@heroicons/react/24/outline';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,9 @@ function LoginFormWrapper() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // 2. ADD THIS LINE: State to manage password visibility
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,16 +90,34 @@ function LoginFormWrapper() {
           <label htmlFor="password" className="block text-sm font-medium text-gray-700">
             Password
           </label>
+          <div className="relative mt-1">
           <input
             id="password"
             name="password"
-            type="password"
+            // The type is now dynamic based on our state
+            type={showPassword ? 'text' : 'password'}
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            // Add padding to the right (pr-10) to make space for the icon
+            className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             placeholder="Enter your password"
           />
+            {/* The toggle button, positioned absolutely inside the input area */}
+            <button
+            type="button" // Important: prevents form submission on click
+
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 flex items-center pr-3"
+            aria-label={showPassword ? "Hide password" :"Show password"}
+>
+            {showPassword ? (
+                       <EyeSlashIcon className="h-5 w-5 text-gray-500" />
+                     ) : (
+                       <EyeIcon className="h-5 w-5 text-gray-500" />
+                     )}
+            </button>
+          </div>
         </div>
       </div>
 
