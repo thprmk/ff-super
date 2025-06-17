@@ -38,7 +38,7 @@ const Sidebar = () => {
   const canAccessEBUpload = hasPermission(userPermissions, PERMISSIONS.EB_UPLOAD);
   const canAccessEBViewCalculate = hasPermission(userPermissions, PERMISSIONS.EB_VIEW_CALCULATE);
   const canAccessProcurement = hasPermission(userPermissions, PERMISSIONS.PROCUREMENT_READ);
-  const canAccessStore = hasPermission(userPermissions, PERMISSIONS.STORE_READ);
+  // const canAccessStore = hasPermission(userPermissions, PERMISSIONS.STORE_READ);
 
 
   // --- MERGED NAVIGATION ITEMS ---
@@ -48,7 +48,7 @@ const Sidebar = () => {
     { href: '/crm', label: 'Customers', icon: UserGroupIcon, show: canAccessCustomers },
     // { href: '/billing', label: 'Billing', icon: CreditCardIcon, show: canAccessBilling },
     // This was '/shop' in one file and not present in the other. I've used '/store' as that's the common name.
-    { href: '/shop', label: 'Shop', icon: BuildingStorefrontIcon, show: canAccessStore },
+    { href: '/shop', label: 'Shop', icon: BuildingStorefrontIcon, show: true },
     { href: '/eb-upload', label: 'EB Upload', icon: LightBulbIcon, show: canAccessEBUpload },
     { href: '/eb-view', label: 'EB View & Calculate', icon: DocumentTextIcon, show: canAccessEBViewCalculate },
     { href: '/procurement', label: 'Procurements', icon: ShoppingCartIcon, show: canAccessProcurement },
