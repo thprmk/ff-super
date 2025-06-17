@@ -131,10 +131,7 @@ function LoginFormWrapper() {
 export default function LoginPage() {
   return (
     <>
-      <Suspense fallback={null}>
-        <LoginRedirector />
-        <LoginFormWrapper />
-      </Suspense>
+      {/* The Suspense block with the form has been moved inside the main layout div */}
 
       <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
@@ -148,8 +145,11 @@ export default function LoginPage() {
             <p className="mt-2 text-sm text-gray-600">Salon Management System</p>
           </div>
 
-          {/* The form is now inside Suspense */}
-          {/* <LoginFormWrapper /> already rendered above */}
+          {/* This block is now in the correct place to be centered. */}
+          <Suspense fallback={null}>
+            <LoginRedirector />
+            <LoginFormWrapper />
+          </Suspense>
 
           <div className="mt-6 p-4 bg-gray-50 rounded-md">
             <h3 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h3>
