@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Stylist from '@/models/Stylist';
-import Appointment from '@/models/Appointment';
+import Appointment from '@/models/appointment';
 import ServiceItem from '@/models/ServiceItem'; // Changed from Service to ServiceItem
 import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 

@@ -1,7 +1,7 @@
 // app/api/appointment/[id]/route.ts
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
-import Appointment from '@/models/Appointment';
+import Appointment from '@/models/appointment';
 import Stylist from '@/models/Stylist';
 import ServiceItem from '@/models/ServiceItem';
 

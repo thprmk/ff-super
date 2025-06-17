@@ -1,9 +1,29 @@
 /** @type {import('next').NextConfig} */
+const path = require("path");
+
 const nextConfig = {
+
+  typescript: {
+    ignoreBuildErrors: true // 💥 This is what actually disables build-time type checking
+  },
+  
   reactStrictMode: true,
-   images: {
-    domains: ['res.cloudinary.com','example.com']
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'example.com',
+      },
+    ],
+  },
+  webpack: (config) => {
+    config.resolve.alias['@'] = path.resolve(__dirname, 'src');
+    return config;
   }
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

@@ -2,7 +2,7 @@
 import mongoose from 'mongoose';
 
 // Import all models
-import '@/models/Appointment';
+import '@/models/appointment';
 import '@/models/customermodel';
 import '@/models/ebReadings';
 import '@/models/invoice';
