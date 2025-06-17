@@ -1,10 +1,9 @@
 /** @type {import('next').NextConfig} */
-const path = require("path");
 
 const nextConfig = {
-
   typescript: {
-    ignoreBuildErrors: true // 💥 This is what actually disables build-time type checking
+    // This is still useful to get a build to pass even with type errors
+    ignoreBuildErrors: true,
   },
   
   reactStrictMode: true,
@@ -20,10 +19,9 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config) => {
-    config.resolve.alias['@'] = path.resolve(__dirname, 'src');
-    return config;
-  }
+  // The custom webpack function has been removed.
+  // Next.js will now automatically handle the '@' alias
+  // based on your tsconfig.json file.
 };
 
 module.exports = nextConfig;
