@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Stylist from '@/models/Stylist';
-import Appointment from '@/models/appointment';
+import Appointment from '@/models/Appointment';
 import ServiceItem from '@/models/ServiceItem'; // Changed from Service to ServiceItem
 import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 
