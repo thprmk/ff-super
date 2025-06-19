@@ -1,4 +1,4 @@
-// app/api/customer/[id]/toggle-membership/route.ts - UPDATED WITH PROPER TYPING
+// app/api/customer/[id]/toggle-membership/route.ts - UPDATED TO ACCEPT CUSTOM BARCODE
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Customer, { ICustomer } from '@/models/customermodel';
@@ -10,12 +10,19 @@ export async function POST(
   try {
     await connectToDatabase();
     
-    const { isMembership } = await req.json();
+    const { isMembership, membershipBarcode } = await req.json();
     const customerId = params.id;
-
-
-    console.log('Toggling membership for customer:', customerId,isMembership);
     
+    // Validate barcode if provided
+    if (isMembership && membershipBarcode) {
+      const barcodeExists = await Customer.checkBarcodeExists(membershipBarcode);
+      if (barcodeExists) {
+        return NextResponse.json({
+          success: false,
+          message: 'This barcode is already in use'
+        }, { status: 400 });
+      }
+    }
     
     const customer: ICustomer | null = await Customer.findById(customerId);
     if (!customer) {
@@ -25,8 +32,8 @@ export async function POST(
       }, { status: 404 });
     }
     
-    // Toggle membership and generate barcode if granting membership
-    const updatedCustomer = await customer.toggleMembership(isMembership);
+    // Toggle membership with custom barcode
+    const updatedCustomer = await customer.toggleMembership(isMembership, membershipBarcode);
     
     return NextResponse.json({
       success: true,

@@ -202,34 +202,118 @@ const CustomerHistoryModal: React.FC<{
 // ===================================================================================
 //  CUSTOMER DETAIL PANEL COMPONENT
 // ===================================================================================
-const CustomerDetailPanel: React.FC<{
+
+
+interface AppointmentHistory {
+  _id: string;
+  date: string;
+  services: string[];
+  totalAmount: number;
+  stylistName: string;
+  status: string;
+}
+
+interface CustomerDetails {
+  _id: string;
+  name: string;
+  email: string;
+  phoneNumber: string;
+  isMember: boolean;
+  membershipDetails: { planName: string; status: string } | null;
+  lastVisit: string | null;
+  appointmentHistory: AppointmentHistory[];
+  loyaltyPoints?: number;
+  membershipBarcode?: string;
+}
+
+interface CustomerDetailPanelProps {
   customer: CustomerDetails | null;
   isLoading: boolean;
-  onToggleMembership: () => void;
+  onToggleMembership: (customBarcode?: string) => void;
   onViewFullHistory: () => void;
-}> = ({ customer, isLoading, onToggleMembership, onViewFullHistory }) => {
-  if (isLoading) {
-    return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-8 bg-gray-200 rounded-md w-3/4" />
-        <div className="h-5 bg-gray-200 rounded-md w-1/2" />
-        <div className="h-24 bg-gray-100 rounded-lg mt-6" />
-        <div className="h-32 bg-gray-100 rounded-lg" />
-      </div>
-    );
-  }
+}
 
-  if (!customer) {
-    return (
-      <div className="text-center text-gray-500 h-full flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg">
-        <UserCircleIcon className="w-16 h-16 text-gray-300 mb-4" />
-        <h3 className="font-semibold text-gray-700">Customer Details</h3>
-        <p className="text-sm">
-          Enter a phone number or scan a barcode to look up an existing customer.
-        </p>
-      </div>
-    );
-  }
+const CustomerDetailPanel: React.FC<CustomerDetailPanelProps> = ({ 
+  customer, 
+  isLoading, 
+  onToggleMembership, 
+  onViewFullHistory 
+}) => {
+  // Barcode input states
+  const [showBarcodeInput, setShowBarcodeInput] = useState(false);
+  const [membershipBarcode, setMembershipBarcode] = useState('');
+  const [isBarcodeValid, setIsBarcodeValid] = useState(true);
+  const [isCheckingBarcode, setIsCheckingBarcode] = useState(false);
+  const [barcodeError, setBarcodeError] = useState('');
+
+  // Validate barcode as user types
+  useEffect(() => {
+    if (!membershipBarcode.trim()) {
+      setIsBarcodeValid(true);
+      setBarcodeError('');
+      return;
+    }
+
+    // Basic validation for barcode format
+    const barcodeRegex = /^[A-Z0-9-_]{3,20}$/i;
+    if (!barcodeRegex.test(membershipBarcode.trim())) {
+      setIsBarcodeValid(false);
+      setBarcodeError('Barcode must be 3-20 characters (letters, numbers, hyphens, underscores only)');
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      setIsCheckingBarcode(true);
+      setBarcodeError('');
+      try {
+        const res = await fetch(`/api/customer/check-barcode?barcode=${encodeURIComponent(membershipBarcode.trim())}`);
+        const data = await res.json();
+        
+        if (data.success) {
+          setIsBarcodeValid(!data.exists);
+          if (data.exists) {
+            setBarcodeError('This barcode is already in use');
+          }
+        } else {
+          setIsBarcodeValid(false);
+          setBarcodeError('Failed to validate barcode');
+        }
+      } catch (error) {
+        console.error('Failed to check barcode:', error);
+        setIsBarcodeValid(false);
+        setBarcodeError('Network error while checking barcode');
+      } finally {
+        setIsCheckingBarcode(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [membershipBarcode]);
+
+  const handleGrantMembership = () => {
+    if (showBarcodeInput) {
+      if (!membershipBarcode.trim()) {
+        setBarcodeError('Please enter a barcode');
+        return;
+      }
+      if (!isBarcodeValid) {
+        return;
+      }
+      onToggleMembership(membershipBarcode.trim());
+      setMembershipBarcode('');
+      setShowBarcodeInput(false);
+      setBarcodeError('');
+    } else {
+      setShowBarcodeInput(true);
+    }
+  };
+
+  const handleCancelBarcodeInput = () => {
+    setShowBarcodeInput(false);
+    setMembershipBarcode('');
+    setBarcodeError('');
+    setIsBarcodeValid(true);
+  };
 
   const getMembershipStatusClasses = (status?: string) => {
     switch (status) {
@@ -240,8 +324,55 @@ const CustomerDetailPanel: React.FC<{
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Appointment': return 'bg-blue-100 text-blue-800';
+      case 'Checked-In': return 'bg-yellow-100 text-yellow-800';
+      case 'Checked-Out': return 'bg-purple-100 text-purple-800';
+      case 'Paid': return 'bg-green-100 text-green-800';
+      case 'Cancelled': return 'bg-red-100 text-red-800';
+      case 'No-Show': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="animate-pulse space-y-4 h-full">
+        <div className="h-8 bg-gray-200 rounded-md w-3/4" />
+        <div className="h-5 bg-gray-200 rounded-md w-1/2" />
+        <div className="h-24 bg-gray-100 rounded-lg mt-6" />
+        <div className="h-32 bg-gray-100 rounded-lg" />
+        <div className="space-y-3">
+          <div className="h-20 bg-gray-100 rounded-lg" />
+          <div className="h-20 bg-gray-100 rounded-lg" />
+          <div className="h-20 bg-gray-100 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (!customer) {
+    return (
+      <div className="text-center text-gray-500 h-full flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg">
+        <UserCircleIcon className="w-16 h-16 text-gray-300 mb-4" />
+        <h3 className="font-semibold text-gray-700 mb-2">Customer Details</h3>
+        <p className="text-sm text-center">
+          Enter a phone number or scan a barcode to look up an existing customer.
+        </p>
+        <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
+          <QrCodeIcon className="w-4 h-4" />
+          <span>Members can use barcode for quick lookup</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col">
+      {/* Header with Customer Name and History Button */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-gray-900">{customer.name}</h3>
         <button
@@ -253,7 +384,9 @@ const CustomerDetailPanel: React.FC<{
         </button>
       </div>
 
-      <div className="space-y-3 text-sm">
+      {/* Customer Basic Info */}
+      <div className="space-y-3 text-sm mb-6">
+        {/* Membership Status */}
         <div className="flex items-center gap-3">
           <SparklesIcon className="w-5 h-5 text-yellow-500" />
           <span className="font-medium text-gray-600">Membership:</span>
@@ -275,20 +408,37 @@ const CustomerDetailPanel: React.FC<{
           <div className="flex items-center gap-3">
             <QrCodeIcon className="w-5 h-5 text-blue-500" />
             <span className="font-medium text-gray-600">Barcode:</span>
-            <span className="text-blue-600 font-mono text-xs">{customer.membershipBarcode}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-600 font-mono text-xs bg-blue-50 px-2 py-1 rounded">
+                {customer.membershipBarcode}
+              </span>
+              <button
+                onClick={() => navigator.clipboard.writeText(customer.membershipBarcode!)}
+                className="text-xs text-blue-500 hover:text-blue-700"
+                title="Copy barcode"
+              >
+                Copy
+              </button>
+            </div>
           </div>
         )}
 
+        {/* Last Visit */}
         <div className="flex items-center gap-3">
           <CalendarDaysIcon className="w-5 h-5 text-gray-400" />
           <span className="font-medium text-gray-600">Last Visit:</span>
           <span>
             {customer.lastVisit
-              ? new Date(customer.lastVisit).toLocaleDateString()
+              ? new Date(customer.lastVisit).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })
               : 'N/A'}
           </span>
         </div>
 
+        {/* Loyalty Points */}
         <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
           <GiftIcon className="w-5 h-5 text-indigo-500" />
           <span className="font-medium text-gray-600">Loyalty Points:</span>
@@ -298,49 +448,140 @@ const CustomerDetailPanel: React.FC<{
         </div>
       </div>
 
-      <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <GiftIcon className="w-5 h-5 text-yellow-600" />
-              <span className="font-semibold text-yellow-800">Membership Status</span>
+      {/* Membership Grant/Management Section */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <GiftIcon className="w-5 h-5 text-yellow-600" />
+                <span className="font-semibold text-yellow-800">Membership Status</span>
+              </div>
+              <p className="text-sm text-yellow-700">
+                {customer.isMember ?
+                  'Customer gets discounted rates on all services' :
+                  'Grant membership for special pricing and barcode access'
+                }
+              </p>
             </div>
-            <p className="text-sm text-yellow-700">
-              {customer.isMember ?
-                'Customer gets discounted rates on all services' :
-                'Grant membership for special pricing'
-              }
-            </p>
+            {!customer.isMember && !showBarcodeInput && (
+              <button
+                onClick={handleGrantMembership}
+                className="px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 transition-colors"
+              >
+                Grant Membership
+              </button>
+            )}
           </div>
-          {!customer.isMember && (
-            <button
-              onClick={onToggleMembership}
-              className="px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700"
-            >
-              Grant Membership
-            </button>
+
+          {/* BARCODE INPUT SECTION */}
+          {showBarcodeInput && !customer.isMember && (
+            <div className="space-y-3 pt-3 border-t border-yellow-300">
+              <div>
+                <label className="block text-sm font-medium text-yellow-800 mb-1">
+                  Membership Barcode <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={membershipBarcode}
+                    onChange={(e) => setMembershipBarcode(e.target.value.toUpperCase())}
+                    placeholder="Enter barcode (e.g., MEMBER001, ABC123)"
+                    className={`w-full px-3 py-2 pr-10 border rounded-md text-sm focus:outline-none focus:ring-2 transition-colors ${
+                      barcodeError 
+                        ? 'border-red-300 focus:ring-red-500' 
+                        : isBarcodeValid && membershipBarcode.trim()
+                        ? 'border-green-300 focus:ring-green-500'
+                        : 'border-gray-300 focus:ring-blue-500'
+                    }`}
+                    maxLength={20}
+                  />
+                  <QrCodeIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+                
+                {/* Validation Messages */}
+                {isCheckingBarcode && (
+                  <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                    <div className="animate-spin h-3 w-3 border border-gray-400 border-t-transparent rounded-full" />
+                    Checking barcode availability...
+                  </div>
+                )}
+                {barcodeError && (
+                  <p className="text-xs text-red-600 mt-1">{barcodeError}</p>
+                )}
+                {isBarcodeValid && membershipBarcode.trim() && !isCheckingBarcode && !barcodeError && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 bg-green-500 rounded-full text-white text-center leading-3 text-[8px]">✓</span>
+                    Barcode is available
+                  </p>
+                )}
+                
+                <p className="text-xs text-gray-500 mt-1">
+                  3-20 characters, letters and numbers only
+                </p>
+              </div>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={handleGrantMembership}
+                  disabled={!membershipBarcode.trim() || !isBarcodeValid || isCheckingBarcode || !!barcodeError}
+                  className="px-3 py-1.5 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isCheckingBarcode ? 'Validating...' : 'Grant Membership'}
+                </button>
+                <button
+                  onClick={handleCancelBarcodeInput}
+                  className="px-3 py-1.5 bg-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Current Membership Info */}
+          {customer.isMember && (
+            <div className="pt-3 border-t border-yellow-300">
+              <div className="flex items-center justify-between">
+                <div className="text-sm">
+                  <span className="font-medium text-yellow-800">Active Member</span>
+                  {customer.membershipBarcode && (
+                    <div className="text-xs text-yellow-700 mt-1">
+                      Barcode: <span className="font-mono">{customer.membershipBarcode}</span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => onToggleMembership()}
+                  className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-md hover:bg-red-600 transition-colors"
+                >
+                  Remove Membership
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      <div className="mt-6 flex-1">
+      {/* Recent Visits Section */}
+      <div className="flex-1">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-base font-semibold text-gray-800">Recent Visits</h4>
           <button
             onClick={onViewFullHistory}
-            className="text-xs text-blue-600 hover:text-blue-800"
+            className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
           >
-            View All
+            View All ({customer.appointmentHistory.length})
           </button>
         </div>
 
         <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-2">
           {customer.appointmentHistory.length > 0 ? (
             customer.appointmentHistory.slice(0, 5).map((apt) => (
-              <div key={apt._id} className="p-3 bg-gray-100/70 rounded-lg text-sm">
+              <div key={apt._id} className="p-3 bg-gray-100/70 rounded-lg text-sm hover:bg-gray-100 transition-colors">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <p className="font-semibold">
+                    <p className="font-semibold text-gray-800">
                       {new Date(apt.date).toLocaleDateString('en-US', {
                         month: 'long',
                         day: 'numeric',
@@ -351,25 +592,53 @@ const CustomerDetailPanel: React.FC<{
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-gray-800">₹{apt.totalAmount.toFixed(2)}</p>
-                    <span className={`px-1.5 py-0.5 text-xs rounded text-gray-600 bg-gray-200`}>
+                    <span className={`px-1.5 py-0.5 text-xs rounded-full font-medium ${getStatusColor(apt.status)}`}>
                       {apt.status}
                     </span>
                   </div>
                 </div>
-                <div className="flex items-start gap-2 mt-2 pt-2 border-t text-xs text-gray-500">
+                <div className="flex items-start gap-2 mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
                   <TagIcon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                  <span>{apt.services.join(', ') || 'Details unavailable'}</span>
+                  <span className="line-clamp-2">{apt.services.join(', ') || 'Details unavailable'}</span>
                 </div>
               </div>
             ))
           ) : (
-            <p className="text-sm text-gray-500 italic">No past appointments found.</p>
+            <div className="text-center py-8">
+              <ClockIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-500 italic">No past appointments found.</p>
+              <p className="text-xs text-gray-400 mt-1">This will be their first visit!</p>
+            </div>
           )}
         </div>
       </div>
+
+      {/* Quick Stats Footer */}
+      {customer.appointmentHistory.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <div>
+              <div className="text-lg font-bold text-blue-600">
+                {customer.appointmentHistory.length}
+              </div>
+              <div className="text-xs text-gray-500">Total Visits</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-green-600">
+                ₹{customer.appointmentHistory
+                  .filter(apt => apt.status === 'Paid')
+                  .reduce((sum, apt) => sum + apt.totalAmount, 0)
+                  .toFixed(0)}
+              </div>
+              <div className="text-xs text-gray-500">Total Spent</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 
 // ===================================================================================
 //  MAIN BOOKING FORM COMPONENT
@@ -450,6 +719,8 @@ export default function BookAppointmentForm({
   }, [selectedServices, selectedCustomerDetails?.isMember]);
 
   const { total, membershipSavings } = calculateTotals();
+
+
 
   // Initialize form
   useEffect(() => {
@@ -676,14 +947,17 @@ export default function BookAppointmentForm({
     setFormData((prev) => ({ ...prev, ...resetData }));
   };
 
-  const handleToggleMembership = async () => {
+   const handleToggleMembership = async (customBarcode?: string) => {
     if (!selectedCustomerDetails) return;
 
     try {
       const response = await fetch(`/api/customer/${selectedCustomerDetails._id}/toggle-membership`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isMembership: !selectedCustomerDetails.isMember })
+        body: JSON.stringify({ 
+          isMembership: !selectedCustomerDetails.isMember,
+          membershipBarcode: customBarcode
+        })
       });
 
       const result = await response.json();
@@ -705,7 +979,7 @@ export default function BookAppointmentForm({
         toast.success(
           selectedCustomerDetails.isMember ?
             'Membership removed successfully!' :
-            'Membership granted successfully!'
+            `Membership granted successfully with barcode: ${result.customer.membershipBarcode}`
         );
       }
     } catch (error) {

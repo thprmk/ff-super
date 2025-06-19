@@ -3,6 +3,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserPlusIcon, ClockIcon, EyeIcon } from '@heroicons/react/24/solid';
+import { toast } from 'react-toastify';
+import { QrCodeIcon } from 'lucide-react';
 
 export interface BillLineItem {
   itemType: 'service' | 'product';
@@ -223,6 +225,11 @@ const BillingModal: React.FC<BillingModalProps> = ({
     other: 0
   });
 
+  // ADD BARCODE STATES FOR MEMBERSHIP GRANT
+  const [membershipBarcode, setMembershipBarcode] = useState<string>('');
+  const [isBarcodeValid, setIsBarcodeValid] = useState<boolean>(true);
+  const [isCheckingBarcode, setIsCheckingBarcode] = useState<boolean>(false);
+
   // Load staff members when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -330,6 +337,30 @@ const BillingModal: React.FC<BillingModalProps> = ({
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  // Validate barcode as user types
+  useEffect(() => {
+    if (!membershipBarcode.trim()) {
+      setIsBarcodeValid(true);
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      setIsCheckingBarcode(true);
+      try {
+        const res = await fetch(`/api/customer/check-barcode?barcode=${encodeURIComponent(membershipBarcode.trim())}`);
+        const data = await res.json();
+        setIsBarcodeValid(!data.exists);
+      } catch (error) {
+        console.error('Failed to check barcode:', error);
+        setIsBarcodeValid(false);
+      } finally {
+        setIsCheckingBarcode(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [membershipBarcode]);
+
   const handleAddItemToBill = (item: SearchableItem) => {
     if (billItems.some(bi => bi.itemId === item.id)) return;
 
@@ -377,11 +408,24 @@ const BillingModal: React.FC<BillingModalProps> = ({
   };
 
   const handleGrantMembership = async () => {
+    if (!membershipBarcode.trim()) {
+      setError('Please enter a barcode for the membership.');
+      return;
+    }
+
+    if (!isBarcodeValid) {
+      setError('This barcode is already in use. Please enter a different one.');
+      return;
+    }
+
     try {
       const response = await fetch(`/api/customer/${customer._id}/toggle-membership`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isMembership: true })
+        body: JSON.stringify({
+          isMembership: true,
+          membershipBarcode: membershipBarcode.trim()
+        })
       });
 
       const result = await response.json();
@@ -389,11 +433,17 @@ const BillingModal: React.FC<BillingModalProps> = ({
         setCustomerIsMember(true);
         setShowMembershipGrant(false);
         setMembershipGranted(true);
+        setMembershipBarcode('');
+        toast.success(`Membership granted with barcode: ${result.customer.membershipBarcode}`);
+      } else {
+        setError(result.message || 'Failed to grant membership');
       }
     } catch (err) {
       console.error('Failed to grant membership:', err);
+      setError('Failed to grant membership');
     }
   };
+
 
   // Handle payment amount changes
   const handlePaymentChange = (method: keyof typeof paymentDetails, amount: number) => {
@@ -403,7 +453,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
     }));
   };
 
-  
+
 
   const calculateTotals = useCallback(() => {
     let serviceTotal = 0;
@@ -518,7 +568,6 @@ const BillingModal: React.FC<BillingModalProps> = ({
                 <h2 className="text-xl font-semibold">
                   Bill for: <span className="text-indigo-600">{customer.name}</span>
                 </h2>
-                {/* === ADD HISTORY BUTTON IN HEADER === */}
                 {customer.phoneNumber && (
                   <button
                     onClick={() => setShowCustomerHistory(true)}
@@ -536,368 +585,401 @@ const BillingModal: React.FC<BillingModalProps> = ({
                     Member Pricing Applied
                   </span>
                 )}
-              {membershipGranted && (
-                 <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-semibold">
-                   Membership Granted
-                 </span>
-               )}
-             </p>
-           </div>
-           <button onClick={onClose} className="text-gray-500 text-2xl hover:text-gray-700">
-             &times;
-           </button>
-         </div>
+                {membershipGranted && (
+                  <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-semibold">
+                    Membership Granted
+                  </span>
+                )}
+              </p>
+            </div>
+            <button onClick={onClose} className="text-gray-500 text-2xl hover:text-gray-700">
+              &times;
+            </button>
+          </div>
 
-         {/* Error */}
-         {error && (
-           <div className="mb-3 p-3 bg-red-100 text-red-700 rounded text-sm">
-             {error}
-           </div>
-         )}
+          {/* Error */}
+          {error && (
+            <div className="mb-3 p-3 bg-red-100 text-red-700 rounded text-sm">
+              {error}
+            </div>
+          )}
 
-         {/* Membership Grant Option */}
-         {showMembershipGrant && !customerIsMember && (
-           <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-             <div className="flex items-center justify-between">
-               <div>
-                 <p className="text-sm font-medium text-yellow-800">Grant Membership?</p>
-                 <p className="text-xs text-yellow-700">Customer will get discounted rates on services</p>
-               </div>
-               <button
-                 onClick={handleGrantMembership}
-                 className="px-3 py-1.5 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 flex items-center gap-1"
-               >
-                 <UserPlusIcon className="w-4 h-4" />
-                 Grant Membership
-               </button>
-             </div>
-           </div>
-         )}
+          {showMembershipGrant && !customerIsMember && (
+            <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">Grant Membership?</p>
+                    <p className="text-xs text-yellow-700">Customer will get discounted rates on all services</p>
+                  </div>
+                </div>
 
-         {/* Body */}
-         <div className="flex-grow overflow-y-auto pr-2 space-y-4">
-           {/* === CURRENT BILL ITEMS SECTION === */}
-           <div>
-             <h3 className="text-lg font-medium text-gray-700 mb-3">
-               Current Bill Items ({billItems.length})
-             </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-yellow-800 mb-1">
+                      Membership Barcode <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={membershipBarcode}
+                        onChange={(e) => setMembershipBarcode(e.target.value)}
+                        placeholder="Enter barcode (e.g., MEMBER001, ABC123)"
+                        className={`w-full px-3 py-2 pr-10 border rounded-md text-sm focus:outline-none focus:ring-2 ${!isBarcodeValid
+                            ? 'border-red-300 focus:ring-red-500'
+                            : 'border-gray-300 focus:ring-blue-500'
+                          }`}
+                      />
+                      <QrCodeIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    </div>
+                    {isCheckingBarcode && (
+                      <p className="text-xs text-gray-500 mt-1">Checking barcode availability...</p>
+                    )}
+                    {!isBarcodeValid && membershipBarcode.trim() && (
+                      <p className="text-xs text-red-600 mt-1">This barcode is already in use</p>
+                    )}
+                    {isBarcodeValid && membershipBarcode.trim() && (
+                      <p className="text-xs text-green-600 mt-1">Barcode is available</p>
+                    )}
+                  </div>
 
-             {billItems.length === 0 ? (
-               <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
-                 <p className="text-lg">No items in bill</p>
-                 <p className="text-sm">Services from appointment should appear here automatically</p>
-               </div>
-             ) : (
-               <div className="border rounded-lg overflow-hidden">
-                 <table className="w-full text-sm">
-                   <thead className="bg-gray-50">
-                     <tr>
-                       <th className="px-4 py-3 text-left">Item</th>
-                       <th className="px-4 py-3 text-center">Qty</th>
-                       <th className="px-4 py-3 text-right">Unit Price</th>
-                       <th className="px-4 py-3 text-right">Total</th>
-                       <th className="px-4 py-3 text-center">Action</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {billItems.map((item, idx) => {
-                       const isService = item.itemType === 'service';
-                       const hasDiscount = customerIsMember && isService && item.membershipRate;
-                       const unitPrice = hasDiscount ? item.membershipRate! : item.unitPrice;
-                       const savings = hasDiscount ? (item.unitPrice - item.membershipRate!) * item.quantity : 0;
+                  <button
+                    onClick={handleGrantMembership}
+                    disabled={!membershipBarcode.trim() || !isBarcodeValid || isCheckingBarcode}
+                    className="px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <UserPlusIcon className="w-4 h-4" />
+                    Grant Membership
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
-                       return (
-                         <tr key={`${item.itemId}-${idx}`} className="border-b hover:bg-gray-50">
-                           <td className="px-4 py-3">
-                             <div>
-                               <span className="font-medium">{item.name}</span>
-                               <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${isService ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                                 }`}>
-                                 {item.itemType}
-                               </span>
-                             </div>
-                             {savings > 0 && (
-                               <div className="text-xs text-green-600 mt-1">
-                                 <span className="line-through text-gray-400">₹{item.unitPrice}</span>
-                                 <span className="ml-2 bg-green-100 px-1 rounded text-green-700">
-                                   Save ₹{savings.toFixed(2)}
-                                 </span>
-                               </div>
-                             )}
-                           </td>
-                           <td className="px-4 py-3 text-center">
-                             <input
-                               type="number"
-                               min="1"
-                               value={item.quantity}
-                               onChange={(e) => handleQuantityChange(idx, parseInt(e.target.value) || 1)}
-                               className="w-16 px-2 py-1 border rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                             />
-                           </td>
-                           <td className="px-4 py-3 text-right">
-                             ₹{unitPrice.toFixed(2)}
-                           </td>
-                           <td className="px-4 py-3 text-right font-semibold">
-                             ₹{item.finalPrice.toFixed(2)}
-                           </td>
-                           <td className="px-4 py-3 text-center">
-                             <button
-                               onClick={() => handleRemoveItem(idx)}
-                               className="text-red-500 hover:text-red-700 text-xs px-2 py-1 hover:bg-red-50 rounded"
-                             >
-                               Remove
-                             </button>
-                           </td>
-                         </tr>
-                       );
-                     })}
-                   </tbody>
-                 </table>
-               </div>
-             )}
-           </div>
+          {/* Body */}
+          <div className="flex-grow overflow-y-auto pr-2 space-y-4">
+            {/* === CURRENT BILL ITEMS SECTION === */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-700 mb-3">
+                Current Bill Items ({billItems.length})
+              </h3>
 
-           {/* Search for Additional Items */}
-           <div className="border-t pt-4">
-             <label htmlFor="itemSearch" className="block text-sm font-medium text-gray-700 mb-1">
-               Add Additional Services/Products
-             </label>
-             <div className="relative">
-               <input
-                 ref={searchInputRef}
-                 id="itemSearch"
-                 type="text"
-                 value={searchQuery}
-                 onChange={e => setSearchQuery(e.target.value)}
-                 placeholder="Search for additional items..."
-                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                 autoComplete="off"
-               />
-               {(isSearching || searchResults.length > 0) && (
-                 <ul className="absolute z-10 w-full bg-white border rounded-md mt-1 max-h-48 overflow-y-auto shadow-lg">
-                   {isSearching && (
-                     <li className="px-3 py-2 text-sm text-gray-500">Searching...</li>
-                   )}
-                   {!isSearching && searchResults.map(item => (
-                     <li
-                       key={item.id}
-                       onClick={() => handleAddItemToBill(item)}
-                       className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-                     >
-                       <div className="flex justify-between items-center">
-                         <div>
-                           <span>{item.name}</span>
-                           <span className={`text-xs ml-2 px-1.5 py-0.5 rounded-full ${item.type === 'service'
-                               ? 'bg-blue-100 text-blue-800'
-                               : 'bg-green-100 text-green-800'
-                             }`}>
-                             {item.type}
-                           </span>
-                         </div>
-                         <div className="text-right">
-                           <div>₹{item.price.toFixed(2)}</div>
-                           {customerIsMember && item.membershipRate && item.type === 'service' && (
-                             <div className="text-xs text-green-600">
-                               Member: ₹{item.membershipRate.toFixed(2)}
-                             </div>
-                           )}
-                         </div>
-                       </div>
-                     </li>
-                   ))}
-                   {!isSearching && searchResults.length === 0 && searchQuery.length >= 2 && (
-                     <li className="px-3 py-2 text-sm text-gray-500">No items found.</li>
-                   )}
-                 </ul>
-               )}
-             </div>
-           </div>
+              {billItems.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
+                  <p className="text-lg">No items in bill</p>
+                  <p className="text-sm">Services from appointment should appear here automatically</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Item</th>
+                        <th className="px-4 py-3 text-center">Qty</th>
+                        <th className="px-4 py-3 text-right">Unit Price</th>
+                        <th className="px-4 py-3 text-right">Total</th>
+                        <th className="px-4 py-3 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {billItems.map((item, idx) => {
+                        const isService = item.itemType === 'service';
+                        const hasDiscount = customerIsMember && isService && item.membershipRate;
+                        const unitPrice = hasDiscount ? item.membershipRate! : item.unitPrice;
+                        const savings = hasDiscount ? (item.unitPrice - item.membershipRate!) * item.quantity : 0;
 
-           {/* BILLING STAFF SELECTION */}
-           <div className="pt-4 border-t">
-             <label htmlFor="billingStaff" className="block text-sm font-medium text-gray-700 mb-1">
-               Billing Staff <span className="text-red-500">*</span>
-             </label>
-             <select
-               id="billingStaff"
-               value={selectedStaffId}
-               onChange={e => setSelectedStaffId(e.target.value)}
-               className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-               disabled={isLoadingStaff}
-             >
-               <option value="">
-                 {isLoadingStaff ? 'Loading staff...' : 'Select billing staff'}
-               </option>
-               {availableStaff.map(staff => (
-                 <option key={staff._id} value={staff._id}>
-                   {staff.name} ({staff.email})
-                 </option>
-               ))}
-             </select>
-           </div>
+                        return (
+                          <tr key={`${item.itemId}-${idx}`} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <div>
+                                <span className="font-medium">{item.name}</span>
+                                <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${isService ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                                  }`}>
+                                  {item.itemType}
+                                </span>
+                              </div>
+                              {savings > 0 && (
+                                <div className="text-xs text-green-600 mt-1">
+                                  <span className="line-through text-gray-400">₹{item.unitPrice}</span>
+                                  <span className="ml-2 bg-green-100 px-1 rounded text-green-700">
+                                    Save ₹{savings.toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => handleQuantityChange(idx, parseInt(e.target.value) || 1)}
+                                className="w-16 px-2 py-1 border rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              ₹{unitPrice.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold">
+                              ₹{item.finalPrice.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => handleRemoveItem(idx)}
+                                className="text-red-500 hover:text-red-700 text-xs px-2 py-1 hover:bg-red-50 rounded"
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
 
-           {/* SPLIT PAYMENT SECTION */}
-           <div className="pt-4 border-t">
-             <h4 className="text-sm font-medium text-gray-700 mb-3">Payment Details</h4>
-             <div className="grid grid-cols-2 gap-4">
-               <div>
-                 <label className="block text-xs font-medium text-gray-600 mb-1">Cash</label>
-                 <input
-                   type="number"
-                   min="0"
-                   step="0.01"
-                   value={paymentDetails.cash}
-                   onChange={e => handlePaymentChange('cash', parseFloat(e.target.value) || 0)}
-                   className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                   placeholder="0.00"
-                 />
-               </div>
-               <div>
-                 <label className="block text-xs font-medium text-gray-600 mb-1">Card</label>
-                 <input
-                   type="number"
-                   min="0"
-                   step="0.01"
-                   value={paymentDetails.card}
-                   onChange={e => handlePaymentChange('card', parseFloat(e.target.value) || 0)}
-                   className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                   placeholder="0.00"
-                 />
-               </div>
-               <div>
-                 <label className="block text-xs font-medium text-gray-600 mb-1">UPI</label>
-                 <input
-                   type="number"
-                   min="0"
-                   step="0.01"
-                   value={paymentDetails.upi}
-                   onChange={e => handlePaymentChange('upi', parseFloat(e.target.value) || 0)}
-                   className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                   placeholder="0.00"
-                 />
-               </div>
-               <div>
-                 <label className="block text-xs font-medium text-gray-600 mb-1">Other</label>
-                 <input
-                   type="number"
-                   min="0"
-                   step="0.01"
-                   value={paymentDetails.other}
-                   onChange={e => handlePaymentChange('other', parseFloat(e.target.value) || 0)}
-                   className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                   placeholder="0.00"
-                 />
-               </div>
-             </div>
-             
-             {/* Payment Summary */}
-             <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-               <div className="flex justify-between text-sm">
-                 <span>Total Paid:</span>
-                 <span className="font-semibold">₹{totalPaid.toFixed(2)}</span>
-               </div>
-               <div className="flex justify-between text-sm mt-1">
-                 <span>Bill Total:</span>
-                 <span className="font-semibold">₹{grandTotal.toFixed(2)}</span>
-               </div>
-               <div className={`flex justify-between text-sm mt-1 ${balance === 0 ? 'text-green-600' : balance > 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                 <span>Balance:</span>
-                 <span className="font-bold">₹{balance.toFixed(2)}</span>
-               </div>
-             </div>
-           </div>
+            {/* Search for Additional Items */}
+            <div className="border-t pt-4">
+              <label htmlFor="itemSearch" className="block text-sm font-medium text-gray-700 mb-1">
+                Add Additional Services/Products
+              </label>
+              <div className="relative">
+                <input
+                  ref={searchInputRef}
+                  id="itemSearch"
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search for additional items..."
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoComplete="off"
+                />
+                {(isSearching || searchResults.length > 0) && (
+                  <ul className="absolute z-10 w-full bg-white border rounded-md mt-1 max-h-48 overflow-y-auto shadow-lg">
+                    {isSearching && (
+                      <li className="px-3 py-2 text-sm text-gray-500">Searching...</li>
+                    )}
+                    {!isSearching && searchResults.map(item => (
+                      <li
+                        key={item.id}
+                        onClick={() => handleAddItemToBill(item)}
+                        className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span>{item.name}</span>
+                            <span className={`text-xs ml-2 px-1.5 py-0.5 rounded-full ${item.type === 'service'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-green-100 text-green-800'
+                              }`}>
+                              {item.type}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <div>₹{item.price.toFixed(2)}</div>
+                            {customerIsMember && item.membershipRate && item.type === 'service' && (
+                              <div className="text-xs text-green-600">
+                                Member: ₹{item.membershipRate.toFixed(2)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                    {!isSearching && searchResults.length === 0 && searchQuery.length >= 2 && (
+                      <li className="px-3 py-2 text-sm text-gray-500">No items found.</li>
+                    )}
+                  </ul>
+                )}
+              </div>
+            </div>
 
-           {/* Notes */}
-           <div className="mt-4">
-             <label htmlFor="billingNotes" className="block text-sm font-medium text-gray-700 mb-1">
-               Notes
-             </label>
-             <textarea
-               id="billingNotes"
-               rows={2}
-               value={notes}
-               onChange={e => setNotes(e.target.value)}
-               className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-               placeholder="Any additional notes..."
-             />
-           </div>
-         </div>
+            {/* BILLING STAFF SELECTION */}
+            <div className="pt-4 border-t">
+              <label htmlFor="billingStaff" className="block text-sm font-medium text-gray-700 mb-1">
+                Billing Staff <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="billingStaff"
+                value={selectedStaffId}
+                onChange={e => setSelectedStaffId(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isLoadingStaff}
+              >
+                <option value="">
+                  {isLoadingStaff ? 'Loading staff...' : 'Select billing staff'}
+                </option>
+                {availableStaff.map(staff => (
+                  <option key={staff._id} value={staff._id}>
+                    {staff.name} ({staff.email})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-         {/* Footer with Totals */}
-         <div className="mt-auto pt-4 border-t">
-           <div className="grid grid-cols-2 gap-8">
-             {/* Totals Breakdown */}
-             <div className="space-y-2 text-sm">
-               {serviceTotal > 0 && (
-                 <div className="flex justify-between">
-                   <span>Services:</span>
-                   <span>₹{serviceTotal.toFixed(2)}</span>
-                 </div>
-               )}
-               {productTotal > 0 && (
-                 <div className="flex justify-between">
-                   <span>Products:</span>
-                   <span>₹{productTotal.toFixed(2)}</span>
-                 </div>
-               )}
-               {membershipSavings > 0 && (
-                 <>
-                   <div className="flex justify-between text-gray-600">
-                     <span>Subtotal:</span>
-                     <span>₹{originalTotal.toFixed(2)}</span>
-                   </div>
-                   <div className="flex justify-between text-green-600 font-semibold">
-                     <span>Membership Savings:</span>
-                     <span>-₹{membershipSavings.toFixed(2)}</span>
-                   </div>
-                 </>
-               )}
-             </div>
+            {/* SPLIT PAYMENT SECTION */}
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Payment Details</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Cash</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={paymentDetails.cash}
+                    onChange={e => handlePaymentChange('cash', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Card</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={paymentDetails.card}
+                    onChange={e => handlePaymentChange('card', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">UPI</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={paymentDetails.upi}
+                    onChange={e => handlePaymentChange('upi', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Other</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={paymentDetails.other}
+                    onChange={e => handlePaymentChange('other', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
 
-             {/* Grand Total */}
-             <div className="text-right">
-               <div className="text-2xl font-bold text-gray-900">
-                 <div>Grand Total:</div>
-                 <div className="text-green-600">₹{grandTotal.toFixed(2)}</div>
-               </div>
-             </div>
-           </div>
+              {/* Payment Summary */}
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                <div className="flex justify-between text-sm">
+                  <span>Total Paid:</span>
+                  <span className="font-semibold">₹{totalPaid.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1">
+                  <span>Bill Total:</span>
+                  <span className="font-semibold">₹{grandTotal.toFixed(2)}</span>
+                </div>
+                <div className={`flex justify-between text-sm mt-1 ${balance === 0 ? 'text-green-600' : balance > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                  <span>Balance:</span>
+                  <span className="font-bold">₹{balance.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
 
-           <div className="mt-6 flex justify-end space-x-3">
-             <button
-               onClick={onClose}
-               className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-               disabled={isLoading}
-             >
-               Cancel
-             </button>
-             <button
-               onClick={handleFinalizeClick}
-               className="px-6 py-2 text-sm bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50 min-w-[120px]"
-               disabled={isLoading || billItems.length === 0 || grandTotal <= 0 || !selectedStaffId || Math.abs(balance) > 0.01}
-             >
-               {isLoading ? (
-                 <div className="flex items-center justify-center">
-                   <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                   Processing...
-                 </div>
-               ) : (
-                 `Complete Payment ₹${grandTotal.toFixed(2)}`
-               )}
-             </button>
-           </div>
-         </div>
-       </div>
-     </div>
+            {/* Notes */}
+            <div className="mt-4">
+              <label htmlFor="billingNotes" className="block text-sm font-medium text-gray-700 mb-1">
+                Notes
+              </label>
+              <textarea
+                id="billingNotes"
+                rows={2}
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Any additional notes..."
+              />
+            </div>
+          </div>
 
-     {/* Customer History Modal */}
-     <CustomerHistoryModal
-       isOpen={showCustomerHistory}
-       onClose={() => setShowCustomerHistory(false)}
-       customer={customer}
-     />
-   </>
- );
+          {/* Footer with Totals */}
+          <div className="mt-auto pt-4 border-t">
+            <div className="grid grid-cols-2 gap-8">
+              {/* Totals Breakdown */}
+              <div className="space-y-2 text-sm">
+                {serviceTotal > 0 && (
+                  <div className="flex justify-between">
+                    <span>Services:</span>
+                    <span>₹{serviceTotal.toFixed(2)}</span>
+                  </div>
+                )}
+                {productTotal > 0 && (
+                  <div className="flex justify-between">
+                    <span>Products:</span>
+                    <span>₹{productTotal.toFixed(2)}</span>
+                  </div>
+                )}
+                {membershipSavings > 0 && (
+                  <>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Subtotal:</span>
+                      <span>₹{originalTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-green-600 font-semibold">
+                      <span>Membership Savings:</span>
+                      <span>-₹{membershipSavings.toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Grand Total */}
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900">
+                  <div>Grand Total:</div>
+                  <div className="text-green-600">₹{grandTotal.toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleFinalizeClick}
+                className="px-6 py-2 text-sm bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50 min-w-[120px]"
+                disabled={isLoading || billItems.length === 0 || grandTotal <= 0 || !selectedStaffId || Math.abs(balance) > 0.01}
+              >
+                {isLoading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                    Processing...
+                  </div>
+                ) : (
+                  `Complete Payment ₹${grandTotal.toFixed(2)}`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Customer History Modal */}
+      <CustomerHistoryModal
+        isOpen={showCustomerHistory}
+        onClose={() => setShowCustomerHistory(false)}
+        customer={customer}
+      />
+    </>
+  );
 };
 
 export default BillingModal;
