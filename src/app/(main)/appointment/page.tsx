@@ -117,7 +117,6 @@ export default function AppointmentPage() {
   const [totalAppointmentsCount, setTotalAppointmentsCount] = useState(0);
 
   console.log(allAppointments);
-  
 
   const fetchAppointments = useCallback(async () => {
     setIsLoading(true);
@@ -200,7 +199,7 @@ export default function AppointmentPage() {
       setSelectedAppointmentForEdit(null);
 
       console.log('Appointment updated:', result.appointment);
-      
+
 
       // If status changed to Checked-Out, open billing modal
       if (updateData.status === 'Checked-Out') {
@@ -226,9 +225,13 @@ export default function AppointmentPage() {
           stylistId: selectedAppointmentForBilling?.stylistId._id,
           items: billDetails.items,
           grandTotal: finalTotal,
-          paymentMethod: billDetails.paymentMethod,
+          paymentDetails: billDetails.paymentDetails,
           notes: billDetails.notes,
-          membershipPurchase: billDetails.membershipPurchase
+          membershipPurchase: billDetails.membershipPurchase,
+          billingStaffId: billDetails.billingStaffId,
+          serviceTotal: billDetails.serviceTotal,
+          productTotal: billDetails.productTotal,
+          subtotal: billDetails.subtotal
         })
       });
 
@@ -274,7 +277,7 @@ export default function AppointmentPage() {
 
       {/* Search and Filters */}
       <div className="mb-6 flex flex-col md:flex-row items-center gap-4">
-        <div className="flex-grow w-full">
+        <div className="flex-grow w-[30%]">
           <input
             type="text"
             placeholder="Search by client or stylist..."
@@ -324,11 +327,13 @@ export default function AppointmentPage() {
                   <th className="px-6 py-3">Service(s)</th>
                   <th className="px-6 py-3">Stylist</th>
                   <th className="px-6 py-3">Date & Time</th>
-                                    <th className="px-6 py-3">Appointment Time</th>
+                  <th className="px-6 py-3">Appointment Time</th>
                   <th className="px-6 py-3">Type</th>
                   <th className="px-6 py-3">Status</th>
                   <th className="px-6 py-3">Amount</th> {/* NEW COLUMN */}
+                  <th className="px-6 py-3">Staff</th> {/* NEW COLUMN */}
 
+                  <th className="px-6 py-3">Amount Splitup</th>
                   <th className="px-6 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -339,6 +344,13 @@ export default function AppointmentPage() {
                   const stylistName = appointment.stylistId?.name || 'N/A';
                   const serviceNames = Array.isArray(appointment.serviceIds) && appointment.serviceIds.length > 0
                     ? appointment.serviceIds.map((s) => s.name).join(', ')
+                    : 'N/A';
+                  const billingStaffName = appointment.billingStaff?.name || 'N/A';
+                  const paymentSummary = appointment.paymentDetails
+                    ? Object.entries(appointment.paymentDetails)
+                      .filter(([_, amount]) => amount > 0)
+                      .map(([method, amount]) => `${method}: ₹${amount}`)
+                      .join(', ') || 'No payment'
                     : 'N/A';
 
                   return (
@@ -353,22 +365,19 @@ export default function AppointmentPage() {
                       <td className="px-6 py-4">{serviceNames}</td>
                       <td className="px-6 py-4">
                         <div>{stylistName}</div>
-                        {/* {!appointment.stylistId?.isAvailable && appointment.status === 'Checked-In' && (
-                          <div className="text-xs text-red-500">🔒 Busy</div>
-                        )} */}
                       </td>
                       <td className="px-6 py-4">
                         <div>{formatDate(appointment.date)}</div>
                         <div className="text-xs text-gray-500">{formatTime(appointment.time)}</div>
                       </td>
-                      {
-                         appointment?.status=="Appointment"?<td className="px-6 py-4">
-                        <div>{formatDate(appointment.appointmentTime)}</div>
-                        <div className="text-xs text-gray-500">{formatTime(appointment.appointmentTime)}</div>
-                      </td>:<td className="px-6 py-4">
-                       -
-                      </td>
-                      }
+                      {appointment.status === "Appointment" ? (
+                        <td className="px-6 py-4">
+                          <div>{formatDate(appointment.appointmentTime)}</div>
+                          <div className="text-xs text-gray-500">{formatTime(appointment.appointmentTime)}</div>
+                        </td>
+                      ) : (
+                        <td className="px-6 py-4">-</td>
+                      )}
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${appointment.appointmentType === 'Online'
                           ? 'bg-blue-100 text-blue-800'
@@ -377,7 +386,7 @@ export default function AppointmentPage() {
                           {appointment.appointmentType}
                         </span>
                       </td>
-                      <td className="px-2  py-4">
+                      <td className="px-2 py-4">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
                           {appointment.status}
                         </span>
@@ -396,9 +405,14 @@ export default function AppointmentPage() {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
+                      <td className="px-6 py-4">
+                        {billingStaffName}
+                      </td>
+                      <td className="px-6 py-4">
+                        {paymentSummary}
+                      </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          {/* Edit Button - Always available */}
                           <button
                             onClick={() => handleEditAppointment(appointment)}
                             className="px-3 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded-full hover:bg-blue-200 flex items-center gap-1"

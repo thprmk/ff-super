@@ -1,4 +1,4 @@
-// models/Invoice.ts - ENHANCED INVOICE MODEL
+// models/invoice.ts
 import mongoose, { Schema, model, models } from 'mongoose';
 
 const lineItemSchema = new Schema({
@@ -65,6 +65,13 @@ const invoiceSchema = new Schema({
     required: true
   },
   
+  // ADD BILLING STAFF REFERENCE
+  billingStaffId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  
   // Items
   lineItems: [lineItemSchema],
   
@@ -96,10 +103,28 @@ const invoiceSchema = new Schema({
     required: true
   },
   
-  // Payment info
-  paymentMethod: {
-    type: String,
-    required: true
+  // SPLIT PAYMENT DETAILS
+  paymentDetails: {
+    cash: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    card: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    upi: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    other: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
   },
   
   paymentStatus: {

@@ -1,5 +1,29 @@
-// models/customermodel.ts - SIMPLIFIED VERSION WITH BOOLEAN MEMBERSHIP
-import mongoose from 'mongoose';
+// models/customermodel.ts - FIXED WITH PROPER TYPESCRIPT INTERFACES
+import mongoose, { Document, Model } from 'mongoose';
+
+// Define the Customer document interface
+export interface ICustomer extends Document {
+  name: string;
+  phoneNumber: string;
+  email: string;
+  loyaltyPoints: number;
+  isMembership: boolean;
+  membershipBarcode?: string;
+  membershipPurchaseDate?: Date;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  
+  // Instance methods
+  getServicePricing(serviceIds: string[]): Promise<any[]>;
+  toggleMembership(status?: boolean): Promise<ICustomer>;
+  generateMembershipBarcode(): string;
+}
+
+// Define the Customer model interface with static methods
+export interface ICustomerModel extends Model<ICustomer> {
+  findByBarcode(barcode: string): Promise<ICustomer | null>;
+}
 
 const customerSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -12,14 +36,21 @@ const customerSchema = new mongoose.Schema({
     min: 0
   },
   
-  // === SIMPLE MEMBERSHIP FIELD ===
+  // === MEMBERSHIP WITH BARCODE ===
   isMembership: {
     type: Boolean,
     default: false,
     index: true
   },
   
-  // Optional: Track when membership was purchased
+  // UNIQUE BARCODE FOR MEMBERS
+  membershipBarcode: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true
+  },
+  
   membershipPurchaseDate: {
     type: Date,
     sparse: true
@@ -33,8 +64,19 @@ const customerSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// Method to get pricing for services based on membership status
-customerSchema.methods.getServicePricing = async function(serviceIds) {
+// Instance method to generate unique barcode when granting membership
+customerSchema.methods.generateMembershipBarcode = function(this: ICustomer): string {
+  if (!this.membershipBarcode) {
+    // Generate format: SALON-YYYYMMDD-XXXX (where XXXX is random)
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    this.membershipBarcode = `SALON-${date}-${random}`;
+  }
+  return this.membershipBarcode;
+};
+
+// Instance method to get pricing for services based on membership status
+customerSchema.methods.getServicePricing = async function(this: ICustomer, serviceIds: string[]) {
   const ServiceItem = mongoose.model('ServiceItem');
   const services = await ServiceItem.find({ _id: { $in: serviceIds } });
   
@@ -50,13 +92,29 @@ customerSchema.methods.getServicePricing = async function(serviceIds) {
   }));
 };
 
-// Method to toggle membership status
-customerSchema.methods.toggleMembership = function(status = true) {
+// Instance method to toggle membership status
+customerSchema.methods.toggleMembership = function(this: ICustomer, status = true): Promise<ICustomer> {
   this.isMembership = status;
   if (status) {
     this.membershipPurchaseDate = new Date();
+    this.generateMembershipBarcode();
+  } else {
+    this.membershipBarcode = undefined;
   }
   return this.save();
 };
 
-export default mongoose.models.Customer || mongoose.model('Customer', customerSchema);
+// Static method to find customer by barcode
+customerSchema.statics.findByBarcode = function(this: ICustomerModel, barcode: string): Promise<ICustomer | null> {
+  return this.findOne({ 
+    membershipBarcode: barcode, 
+    isMembership: true, 
+    isActive: true 
+  });
+};
+
+// Create and export the model with proper typing
+const Customer = (mongoose.models.Customer as ICustomerModel) || 
+  mongoose.model<ICustomer, ICustomerModel>('Customer', customerSchema);
+
+export default Customer;

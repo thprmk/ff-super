@@ -1,9 +1,8 @@
-
-// components/BookAppointmentForm.tsx
+// components/BookAppointmentForm.tsx - COMPLETE IMPLEMENTATION WITH BARCODE SUPPORT
 'use client';
 
 import React, { useState, useEffect, FormEvent, useCallback, useRef } from 'react';
-import { ChevronDownIcon, XMarkIcon, UserCircleIcon, CalendarDaysIcon, SparklesIcon, TagIcon, GiftIcon, ClockIcon, EyeIcon } from '@heroicons/react/24/solid';
+import { ChevronDownIcon, XMarkIcon, UserCircleIcon, CalendarDaysIcon, SparklesIcon, TagIcon, GiftIcon, ClockIcon, EyeIcon, QrCodeIcon } from '@heroicons/react/24/solid';
 import { toast } from 'react-toastify';
 
 // ===================================================================================
@@ -62,6 +61,7 @@ interface CustomerDetails {
   lastVisit: string | null;
   appointmentHistory: AppointmentHistory[];
   loyaltyPoints?: number;
+  membershipBarcode?: string; // Add barcode field
 }
 
 interface BookAppointmentFormProps {
@@ -69,8 +69,6 @@ interface BookAppointmentFormProps {
   onClose: () => void;
   onBookAppointment: (data: NewBookingData) => Promise<void>;
 }
-
-
 
 // ===================================================================================
 //  CUSTOMER HISTORY MODAL
@@ -83,8 +81,8 @@ const CustomerHistoryModal: React.FC<{
   if (!isOpen || !customer) return null;
 
   const totalSpent = customer.appointmentHistory
-  .filter(apt => apt.status === 'Paid')
-  .reduce((sum, apt) => sum + apt.totalAmount, 0);
+    .filter(apt => apt.status === 'Paid')
+    .reduce((sum, apt) => sum + apt.totalAmount, 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -121,7 +119,7 @@ const CustomerHistoryModal: React.FC<{
                 .reduce((sum, apt) => sum + apt.totalAmount, 0)
                 .toFixed(0)}
             </div>
-            <div className="text-sm text-gray-600">Total Spent </div>
+            <div className="text-sm text-gray-600">Total Spent</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-yellow-600">{customer.loyaltyPoints || 0}</div>
@@ -134,6 +132,19 @@ const CustomerHistoryModal: React.FC<{
             <div className="text-sm text-gray-600">Member</div>
           </div>
         </div>
+
+        {/* Barcode Display */}
+        {customer.membershipBarcode && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              <QrCodeIcon className="w-6 h-6 text-blue-600" />
+              <div>
+                <div className="font-semibold text-blue-800">Membership Barcode</div>
+                <div className="text-sm text-blue-600 font-mono">{customer.membershipBarcode}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Appointment History */}
         <div>
@@ -214,7 +225,7 @@ const CustomerDetailPanel: React.FC<{
         <UserCircleIcon className="w-16 h-16 text-gray-300 mb-4" />
         <h3 className="font-semibold text-gray-700">Customer Details</h3>
         <p className="text-sm">
-          Enter a phone number to look up an existing customer.
+          Enter a phone number or scan a barcode to look up an existing customer.
         </p>
       </div>
     );
@@ -258,6 +269,15 @@ const CustomerDetailPanel: React.FC<{
             <span className="text-gray-500">Not a Member</span>
           )}
         </div>
+
+        {/* Barcode Display */}
+        {customer.membershipBarcode && (
+          <div className="flex items-center gap-3">
+            <QrCodeIcon className="w-5 h-5 text-blue-500" />
+            <span className="font-medium text-gray-600">Barcode:</span>
+            <span className="text-blue-600 font-mono text-xs">{customer.membershipBarcode}</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <CalendarDaysIcon className="w-5 h-5 text-gray-400" />
@@ -389,8 +409,14 @@ export default function BookAppointmentForm({
   const [isLoadingCustomerDetails, setIsLoadingCustomerDetails] = useState(false);
   const [showCustomerHistory, setShowCustomerHistory] = useState(false);
 
+  // BARCODE SEARCH STATES
+  const [barcodeQuery, setBarcodeQuery] = useState<string>('');
+  const [isSearchingByBarcode, setIsSearchingByBarcode] = useState<boolean>(false);
+  const [searchMode, setSearchMode] = useState<'phone' | 'barcode'>('phone');
+
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   // Helper functions for date and time
   const getCurrentDate = () => {
@@ -438,6 +464,8 @@ export default function BookAppointmentForm({
     setSelectedCustomerDetails(null);
     setCustomerSearchResults([]);
     setShowCustomerHistory(false);
+    setBarcodeQuery('');
+    setSearchMode('phone');
 
     const fetchServices = async () => {
       try {
@@ -501,8 +529,10 @@ export default function BookAppointmentForm({
     findAvailableStylists();
   }, [findAvailableStylists]);
 
-  // Customer search
+  // Customer search by phone
   useEffect(() => {
+    if (searchMode !== 'phone') return;
+    
     const query = formData.phoneNumber.trim();
     if (isCustomerSelected || query.length < 3) {
       setCustomerSearchResults([]);
@@ -523,7 +553,7 @@ export default function BookAppointmentForm({
     }, 500);
 
     return () => clearTimeout(handler);
-  }, [formData.phoneNumber, isCustomerSelected]);
+  }, [formData.phoneNumber, isCustomerSelected, searchMode]);
 
   // Event handlers
   const handleChange = (
@@ -575,6 +605,40 @@ export default function BookAppointmentForm({
     }
   };
 
+  // NEW: Barcode search handler
+  const handleBarcodeSearch = async () => {
+    if (!barcodeQuery.trim()) return;
+
+    setIsSearchingByBarcode(true);
+    try {
+      const res = await fetch(`/api/customer/search-by-barcode?barcode=${encodeURIComponent(barcodeQuery.trim())}`);
+      const data = await res.json();
+
+      if (res.ok && data.success && data.customer) {
+        const cust = data.customer;
+        setFormData((prev) => ({
+          ...prev,
+          customerId: cust._id,
+          customerName: cust.name,
+          phoneNumber: cust.phoneNumber,
+          email: cust.email || ''
+        }));
+        setSelectedCustomerDetails(cust);
+        setIsCustomerSelected(true);
+        setBarcodeQuery('');
+        toast.success('Customer found by barcode!');
+      } else {
+        toast.error('No customer found with this barcode');
+        setBarcodeQuery('');
+      }
+    } catch (err) {
+      toast.error('Failed to search by barcode');
+      setBarcodeQuery('');
+    } finally {
+      setIsSearchingByBarcode(false);
+    }
+  };
+
   const handleSelectCustomer = (customer: CustomerSearchResult) => {
     fetchAndSetCustomerDetails(customer.phoneNumber);
   };
@@ -597,8 +661,11 @@ export default function BookAppointmentForm({
 
     if (clearPhone) {
       resetData.phoneNumber = '';
-      if (phoneInputRef.current) {
+      setBarcodeQuery('');
+      if (searchMode === 'phone' && phoneInputRef.current) {
         phoneInputRef.current.focus();
+      } else if (searchMode === 'barcode' && barcodeInputRef.current) {
+        barcodeInputRef.current.focus();
       }
     } else {
       if (nameInputRef.current) {
@@ -627,7 +694,8 @@ export default function BookAppointmentForm({
           membershipDetails: !prev.isMember ? {
             planName: 'Member',
             status: 'Active'
-          } : null
+          } : null,
+          membershipBarcode: result.customer?.membershipBarcode || prev.membershipBarcode
         } : null);
 
         setTimeout(() => {
@@ -706,338 +774,420 @@ export default function BookAppointmentForm({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl p-6 md:p-8 max-w-6xl w-full max-h-[90vh] flex flex-col">
-          <div className="flex justify-between items-center mb-6 pb-4 border-b">
-            <h2 className="text-2xl font-bold">Book New Appointment</h2>
-            <button onClick={onClose}>
-              <XMarkIcon className="w-6 h-6" />
-            </button>
-          </div>
 
-          <div className="flex-grow overflow-y-auto grid grid-cols-1 lg:grid-cols-3 gap-x-8">
-            <form onSubmit={handleSubmit} className="space-y-6 lg:col-span-2 flex flex-col">
-              <div className="space-y-6 flex-grow">
-                {formError && (
-                  <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
-                    {formError}
-                  </div>
-                )}
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+       <div className="bg-white rounded-xl p-6 md:p-8 max-w-6xl w-full max-h-[90vh] flex flex-col">
+         <div className="flex justify-between items-center mb-6 pb-4 border-b">
+           <h2 className="text-2xl font-bold">Book New Appointment</h2>
+           <button onClick={onClose}>
+             <XMarkIcon className="w-6 h-6" />
+           </button>
+         </div>
 
-                <fieldset className={fieldsetClasses}>
-                  <legend className={legendClasses}>Customer Information</legend>
+         <div className="flex-grow overflow-y-auto grid grid-cols-1 lg:grid-cols-3 gap-x-8">
+           <form onSubmit={handleSubmit} className="space-y-6 lg:col-span-2 flex flex-col">
+             <div className="space-y-6 flex-grow">
+               {formError && (
+                 <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
+                   {formError}
+                 </div>
+               )}
 
-                  <div className="grid md:grid-cols-2 gap-x-6 gap-y-5 mt-3">
-                    <div className="md:col-span-2 relative">
-                      <label htmlFor="phoneNumber" className="block text-sm font-medium mb-1.5">
-                        Phone Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        ref={phoneInputRef}
-                        id="phoneNumber"
-                        type="tel"
-                        name="phoneNumber"
-                        value={formData.phoneNumber}
-                        onChange={handleChange}
-                        onBlur={handlePhoneBlur}
-                        required
-                        placeholder="Enter phone to find or create..."
-                        className={inputBaseClasses}
-                        autoComplete="off"
-                      />
-                      {(isSearchingCustomers || customerSearchResults.length > 0) && (
-                        <ul className="absolute z-20 w-full bg-white border rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg">
-                          {isSearchingCustomers ? (
-                            <li className="px-3 py-2 text-sm text-gray-500">Searching...</li>
-                          ) : (
-                            customerSearchResults.map((cust) => (
-                              <li
-                                key={cust._id}
-                                onClick={() => handleSelectCustomer(cust)}
-                                className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-                              >
-                                {cust.name} - <span className="text-gray-500">{cust.phoneNumber}</span>
-                              </li>
-                            ))
-                          )}
-                        </ul>
-                      )}
-                    </div>
+               <fieldset className={fieldsetClasses}>
+                 <legend className={legendClasses}>Customer Information</legend>
 
-                    <div>
-                      <label htmlFor="customerName" className="block text-sm font-medium mb-1.5">
-                        Full Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        ref={nameInputRef}
-                        id="customerName"
-                        type="text"
-                        name="customerName"
-                        value={formData.customerName}
-                        onChange={handleChange}
-                        required
-                        className={`${inputBaseClasses} ${isCustomerSelected ? 'bg-gray-100' : ''}`}
-                        disabled={isCustomerSelected}
-                      />
-                    </div>
+                 {/* SEARCH MODE TOGGLE */}
+                 <div className="flex items-center gap-4 mb-4">
+                   <div className="flex bg-gray-100 rounded-lg p-1">
+                     <button
+                       type="button"
+                       onClick={() => setSearchMode('phone')}
+                       className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                         searchMode === 'phone'
+                           ? 'bg-white text-black shadow-sm'
+                           : 'text-gray-600 hover:bg-gray-200'
+                       }`}
+                     >
+                       Phone Search
+                     </button>
+                     <button
+                       type="button"
+                       onClick={() => setSearchMode('barcode')}
+                       className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                         searchMode === 'barcode'
+                           ? 'bg-white text-black shadow-sm'
+                           : 'text-gray-600 hover:bg-gray-200'
+                       }`}
+                     >
+                       Barcode Search
+                     </button>
+                   </div>
+                   <div className="text-xs text-gray-500">
+                     Switch between phone number search and membership barcode scan
+                   </div>
+                 </div>
 
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium mb-1.5">
-                        Email
-                      </label>
-                      <input
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className={`${inputBaseClasses} ${isCustomerSelected ? 'bg-gray-100' : ''}`}
-                        disabled={isCustomerSelected}
-                      />
-                    </div>
-                  </div>
+                 <div className="grid md:grid-cols-2 gap-x-6 gap-y-5 mt-3">
+                   {searchMode === 'phone' ? (
+                     <div className="md:col-span-2 relative">
+                       <label htmlFor="phoneNumber" className="block text-sm font-medium mb-1.5">
+                         Phone Number <span className="text-red-500">*</span>
+                       </label>
+                       <input
+                         ref={phoneInputRef}
+                         id="phoneNumber"
+                         type="tel"
+                         name="phoneNumber"
+                         value={formData.phoneNumber}
+                         onChange={handleChange}
+                         onBlur={handlePhoneBlur}
+                         required
+                         placeholder="Enter phone to find or create..."
+                         className={inputBaseClasses}
+                         autoComplete="off"
+                       />
+                       {(isSearchingCustomers || customerSearchResults.length > 0) && (
+                         <ul className="absolute z-20 w-full bg-white border rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg">
+                           {isSearchingCustomers ? (
+                             <li className="px-3 py-2 text-sm text-gray-500">Searching...</li>
+                           ) : (
+                             customerSearchResults.map((cust) => (
+                               <li
+                                 key={cust._id}
+                                 onClick={() => handleSelectCustomer(cust)}
+                                 className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+                               >
+                                 {cust.name} - <span className="text-gray-500">{cust.phoneNumber}</span>
+                               </li>
+                             ))
+                           )}
+                         </ul>
+                       )}
+                     </div>
+                   ) : (
+                     <div className="md:col-span-2 relative">
+                       <label htmlFor="barcodeQuery" className="block text-sm font-medium mb-1.5">
+                         Membership Barcode <span className="text-red-500">*</span>
+                       </label>
+                       <div className="flex gap-2">
+                         <div className="relative flex-grow">
+                           <input
+                             ref={barcodeInputRef}
+                             id="barcodeQuery"
+                             type="text"
+                             value={barcodeQuery}
+                             onChange={(e) => setBarcodeQuery(e.target.value)}
+                             onKeyPress={(e) => e.key === 'Enter' && handleBarcodeSearch()}
+                             placeholder="Scan or enter membership barcode..."
+                             className={inputBaseClasses}
+                             autoComplete="off"
+                           />
+                           <QrCodeIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                         </div>
+                         <button
+                           type="button"
+                           onClick={handleBarcodeSearch}
+                           disabled={isSearchingByBarcode || !barcodeQuery.trim()}
+                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                         >
+                           {isSearchingByBarcode ? (
+                             <>
+                               <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                               Searching...
+                             </>
+                           ) : (
+                             'Search'
+                           )}
+                         </button>
+                       </div>
+                       <p className="text-xs text-gray-500 mt-1">
+                         Members can scan their barcode to quickly load their information
+                       </p>
+                     </div>
+                   )}
 
-                  {isCustomerSelected && (
-                    <button
-                      type="button"
-                      onClick={() => handleClearSelection(true)}
-                      className="text-xs text-blue-600 hover:underline mt-2"
-                    >
-                      Clear Selection & Add New
-                    </button>
-                  )}
-                </fieldset>
+                   <div>
+                     <label htmlFor="customerName" className="block text-sm font-medium mb-1.5">
+                       Full Name <span className="text-red-500">*</span>
+                     </label>
+                     <input
+                       ref={nameInputRef}
+                       id="customerName"
+                       type="text"
+                       name="customerName"
+                       value={formData.customerName}
+                       onChange={handleChange}
+                       required
+                       className={`${inputBaseClasses} ${isCustomerSelected ? 'bg-gray-100' : ''}`}
+                       disabled={isCustomerSelected}
+                     />
+                   </div>
 
-                <fieldset className={fieldsetClasses}>
-                  <legend className={legendClasses}>Schedule & Service</legend>
+                   <div>
+                     <label htmlFor="email" className="block text-sm font-medium mb-1.5">
+                       Email
+                     </label>
+                     <input
+                       id="email"
+                       type="email"
+                       name="email"
+                       value={formData.email}
+                       onChange={handleChange}
+                       className={`${inputBaseClasses} ${isCustomerSelected ? 'bg-gray-100' : ''}`}
+                       disabled={isCustomerSelected}
+                     />
+                   </div>
+                 </div>
 
-                  <div className="mt-3">
-                    <label htmlFor="status" className="block text-sm font-medium mb-1.5">
-                      Status <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                      className={inputBaseClasses}
-                    >
-                      <option value="Appointment">Appointment (Online Booking)</option>
-                      <option value="Checked-In">Checked-In (Walk-in Customer)</option>
-                    </select>
-                    {formData.status === 'Checked-In' && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        Service starts now at {formData.time} on {formData.date}.
-                      </p>
-                    )}
-                  </div>
+                 {isCustomerSelected && (
+                   <div className="mt-3 flex items-center justify-between">
+                     <button
+                       type="button"
+                       onClick={() => handleClearSelection(true)}
+                       className="text-xs text-blue-600 hover:underline"
+                     >
+                       Clear Selection & Add New
+                     </button>
+                     {selectedCustomerDetails?.membershipBarcode && (
+                       <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded flex items-center gap-1">
+                         <QrCodeIcon className="w-3 h-3" />
+                         Barcode: {selectedCustomerDetails.membershipBarcode}
+                       </div>
+                     )}
+                   </div>
+                 )}
+               </fieldset>
 
-                  <div className="grid md:grid-cols-2 gap-x-6 gap-y-5 mt-5">
-                    <div>
-                      <label htmlFor="date" className="block text-sm font-medium mb-1.5">
-                        Date <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        id="date"
-                        type="date"
-                        name="date"
-                        value={formData.date}
-                        onChange={handleChange}
-                        required
-                        className={`${inputBaseClasses} ${formData.status === 'Checked-In' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                        readOnly={formData.status === 'Checked-In'}
-                      />
-                    </div>
+               <fieldset className={fieldsetClasses}>
+                 <legend className={legendClasses}>Schedule & Service</legend>
 
-                    <div>
-                      <label htmlFor="time" className="block text-sm font-medium mb-1.5">
-                        Time <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        id="time"
-                        type="time"
-                        name="time"
-                        value={formData.time}
-                        onChange={handleChange}
-                        required
-                        className={`${inputBaseClasses} ${formData.status === 'Checked-In' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                        readOnly={formData.status === 'Checked-In'}
-                      />
-                    </div>
-                  </div>
+                 <div className="mt-3">
+                   <label htmlFor="status" className="block text-sm font-medium mb-1.5">
+                     Status <span className="text-red-500">*</span>
+                   </label>
+                   <select
+                     id="status"
+                     name="status"
+                     value={formData.status}
+                     onChange={handleChange}
+                     className={inputBaseClasses}
+                   >
+                     <option value="Appointment">Appointment (Online Booking)</option>
+                     <option value="Checked-In">Checked-In (Walk-in Customer)</option>
+                   </select>
+                   {formData.status === 'Checked-In' && (
+                     <p className="text-sm text-gray-500 mt-1">
+                       Service starts now at {formData.time} on {formData.date}.
+                     </p>
+                   )}
+                 </div>
 
-                  <div className="mt-5">
-                    <label className="block text-sm font-medium mb-1.5">
-                      Add Services <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        onChange={(e) => {
-                          handleAddService(e.target.value);
-                          e.target.value = '';
-                        }}
-                        value=""
-                        className={`${inputBaseClasses} pr-8`}
-                      >
-                        <option value="" disabled>-- Click to add a service --</option>
-                        {allServices.map((service) => (
-                          <option
-                            key={service._id}
-                            value={service._id}
-                            disabled={selectedServices.some((s) => s._id === service._id)}
-                          >
-                            {service.name} - ₹{service.price}
-                            {service.membershipRate && ` (Member: ₹${service.membershipRate})`}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2">
-                        <ChevronDownIcon className="h-5 w-5 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
+                 <div className="grid md:grid-cols-2 gap-x-6 gap-y-5 mt-5">
+                   <div>
+                     <label htmlFor="date" className="block text-sm font-medium mb-1.5">
+                       Date <span className="text-red-500">*</span>
+                     </label>
+                     <input
+                       id="date"
+                       type="date"
+                       name="date"
+                       value={formData.date}
+                       onChange={handleChange}
+                       required
+                       className={`${inputBaseClasses} ${formData.status === 'Checked-In' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                       readOnly={formData.status === 'Checked-In'}
+                     />
+                   </div>
 
-                  <div className="mt-3 space-y-2">
-                    {selectedServices.map((service) => {
-                      const showMembershipPrice = selectedCustomerDetails?.isMember && service.membershipRate;
-                      return (
-                        <div
-                          key={service._id}
-                          className="flex items-center justify-between bg-gray-100 p-3 rounded-md text-sm"
-                        >
-                          <div className="flex-1">
-                            <span className="font-medium">{service.name}</span>
-                            <div className="text-xs text-gray-600 mt-1">
-                              Duration: {service.duration} minutes
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {showMembershipPrice ? (
-                              <div className="text-right">
-                                <div className="line-through text-gray-400">₹{service.price.toFixed(2)}</div>
-                                <div className="text-green-600 font-semibold">₹{service.membershipRate!.toFixed(2)}</div>
-                              </div>
-                            ) : (
-                              <span>₹{service.price.toFixed(2)}</span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveService(service._id)}
-                              className="text-red-500 font-bold"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                   <div>
+                     <label htmlFor="time" className="block text-sm font-medium mb-1.5">
+                       Time <span className="text-red-500">*</span>
+                     </label>
+                     <input
+                       id="time"
+                       type="time"
+                       name="time"
+                       value={formData.time}
+                       onChange={handleChange}
+                       required
+                       className={`${inputBaseClasses} ${formData.status === 'Checked-In' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                       readOnly={formData.status === 'Checked-In'}
+                     />
+                   </div>
+                 </div>
 
-                  {/* Total Amount Display */}
-                  {selectedServices.length > 0 && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">Total Amount:</span>
-                        <div className="text-right">
-                          <span className="text-lg font-bold text-green-600">₹{total.toFixed(2)}</span>
-                          {membershipSavings > 0 && (
-                            <div className="text-xs text-green-500 mt-1">
-                              Saved ₹{membershipSavings.toFixed(2)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                 <div className="mt-5">
+                   <label className="block text-sm font-medium mb-1.5">
+                     Add Services <span className="text-red-500">*</span>
+                   </label>
+                   <div className="relative">
+                     <select
+                       onChange={(e) => {
+                         handleAddService(e.target.value);
+                         e.target.value = '';
+                       }}
+                       value=""
+                       className={`${inputBaseClasses} pr-8`}
+                     >
+                       <option value="" disabled>-- Click to add a service --</option>
+                       {allServices.map((service) => (
+                         <option
+                           key={service._id}
+                           value={service._id}
+                           disabled={selectedServices.some((s) => s._id === service._id)}
+                         >
+                           {service.name} - ₹{service.price}
+                           {service.membershipRate && ` (Member: ₹${service.membershipRate})`}
+                         </option>
+                       ))}
+                     </select>
+                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2">
+                       <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+                     </div>
+                   </div>
+                 </div>
 
-                  <div className="relative mt-5">
-                    <label htmlFor="stylist" className="block text-sm font-medium mb-1.5">
-                      Stylist <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="stylist"
-                      name="stylistId"
-                      value={formData.stylistId}
-                      onChange={handleChange}
-                      required
-                      disabled={formData.serviceIds.length === 0 || !formData.date || !formData.time || isLoadingStylists}
-                      className={`${inputBaseClasses} pr-8 disabled:bg-gray-100`}
-                    >
-                      <option value="" disabled>
-                        {isLoadingStylists ? 'Checking availability...' : 'Select a stylist'}
-                      </option>
-                      {availableStylists.length > 0 ? (
-                        availableStylists.map((s) => (
-                          <option key={s._id} value={s._id}>{s.name}</option>
-                        ))
-                      ) : (
-                        !isLoadingStylists && (
-                          <option value="" disabled>No stylists available</option>
-                        )
-                      )}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 top-6 flex items-center px-2">
-                      <ChevronDownIcon className="h-5 w-5 text-gray-400" />
-                    </div>
-                  </div>
+                 <div className="mt-3 space-y-2">
+                   {selectedServices.map((service) => {
+                     const showMembershipPrice = selectedCustomerDetails?.isMember && service.membershipRate;
+                     return (
+                       <div
+                         key={service._id}
+                         className="flex items-center justify-between bg-gray-100 p-3 rounded-md text-sm"
+                       >
+                         <div className="flex-1">
+                           <span className="font-medium">{service.name}</span>
+                           <div className="text-xs text-gray-600 mt-1">
+                             Duration: {service.duration} minutes
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-3">
+                           {showMembershipPrice ? (
+                             <div className="text-right">
+                               <div className="line-through text-gray-400">₹{service.price.toFixed(2)}</div>
+                               <div className="text-green-600 font-semibold">₹{service.membershipRate!.toFixed(2)}</div>
+                             </div>
+                           ) : (
+                             <span>₹{service.price.toFixed(2)}</span>
+                           )}
+                           <button
+                             type="button"
+                             onClick={() => handleRemoveService(service._id)}
+                             className="text-red-500 font-bold hover:bg-red-50 px-2 py-1 rounded"
+                           >
+                             ×
+                           </button>
+                         </div>
+                       </div>
+                     );
+                   })}
+                 </div>
 
-                  <div className="mt-5">
-                    <label htmlFor="notes" className="block text-sm font-medium mb-1.5">
-                      Notes
-                    </label>
-                    <textarea
-                      id="notes"
-                      name="notes"
-                      rows={3}
-                      value={formData.notes || ''}
-                      onChange={handleChange}
-                      className={`${inputBaseClasses} resize-none`}
-                      placeholder="Any special requirements or notes..."
-                    />
-                  </div>
-                </fieldset>
-              </div>
+                 {/* Total Amount Display */}
+                 {selectedServices.length > 0 && (
+                   <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                     <div className="flex justify-between items-center">
+                       <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+                       <div className="text-right">
+                         <span className="text-lg font-bold text-green-600">₹{total.toFixed(2)}</span>
+                         {membershipSavings > 0 && (
+                           <div className="text-xs text-green-500 mt-1">
+                             Saved ₹{membershipSavings.toFixed(2)} with membership
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+                 )}
 
-              <div className="flex justify-end gap-3 pt-6 border-t mt-auto">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-5 py-2.5 text-sm bg-white border rounded-lg hover:bg-gray-50"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 text-sm text-white bg-gray-800 rounded-lg hover:bg-black flex items-center justify-center min-w-[150px]"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                  ) : (
-                    'Book Appointment'
-                  )}
-                </button>
-              </div>
-            </form>
+                 <div className="relative mt-5">
+                   <label htmlFor="stylist" className="block text-sm font-medium mb-1.5">
+                     Stylist <span className="text-red-500">*</span>
+                   </label>
+                   <select
+                     id="stylist"
+                     name="stylistId"
+                     value={formData.stylistId}
+                     onChange={handleChange}
+                     required
+                     disabled={formData.serviceIds.length === 0 || !formData.date || !formData.time || isLoadingStylists}
+                     className={`${inputBaseClasses} pr-8 disabled:bg-gray-100`}
+                   >
+                     <option value="" disabled>
+                       {isLoadingStylists ? 'Checking availability...' : 'Select a stylist'}
+                     </option>
+                     {availableStylists.length > 0 ? (
+                       availableStylists.map((s) => (
+                         <option key={s._id} value={s._id}>{s.name}</option>
+                       ))
+                     ) : (
+                       !isLoadingStylists && (
+                         <option value="" disabled>No stylists available</option>
+                       )
+                     )}
+                   </select>
+                   <div className="pointer-events-none absolute inset-y-0 right-0 top-6 flex items-center px-2">
+                     <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+                   </div>
+                 </div>
 
-            <div className="lg:col-span-1 lg:border-l lg:pl-8 mt-8 lg:mt-0">
-              <CustomerDetailPanel
-                customer={selectedCustomerDetails}
-                isLoading={isLoadingCustomerDetails}
-                onToggleMembership={handleToggleMembership}
-                onViewFullHistory={() => setShowCustomerHistory(true)}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+                 <div className="mt-5">
+                   <label htmlFor="notes" className="block text-sm font-medium mb-1.5">
+                     Notes
+                   </label>
+                   <textarea
+                     id="notes"
+                     name="notes"
+                     rows={3}
+                     value={formData.notes || ''}
+                     onChange={handleChange}
+                     className={`${inputBaseClasses} resize-none`}
+                     placeholder="Any special requirements or notes..."
+                   />
+                 </div>
+               </fieldset>
+             </div>
 
-      <CustomerHistoryModal
-        isOpen={showCustomerHistory}
-        onClose={() => setShowCustomerHistory(false)}
-        customer={selectedCustomerDetails}
-      />
-    </>
-  );
+             <div className="flex justify-end gap-3 pt-6 border-t mt-auto">
+               <button
+                 type="button"
+                 onClick={onClose}
+                 className="px-5 py-2.5 text-sm bg-white border rounded-lg hover:bg-gray-50"
+                 disabled={isSubmitting}
+               >
+                 Cancel
+               </button>
+               <button
+                 type="submit"
+                 className="px-5 py-2.5 text-sm text-white bg-gray-800 rounded-lg hover:bg-black flex items-center justify-center min-w-[150px]"
+                 disabled={isSubmitting}
+               >
+                 {isSubmitting ? (
+                   <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                 ) : (
+                   'Book Appointment'
+                 )}
+               </button>
+             </div>
+           </form>
+
+           <div className="lg:col-span-1 lg:border-l lg:pl-8 mt-8 lg:mt-0">
+             <CustomerDetailPanel
+               customer={selectedCustomerDetails}
+               isLoading={isLoadingCustomerDetails}
+               onToggleMembership={handleToggleMembership}
+               onViewFullHistory={() => setShowCustomerHistory(true)}
+             />
+           </div>
+         </div>
+       </div>
+     </div>
+
+     <CustomerHistoryModal
+       isOpen={showCustomerHistory}
+       onClose={() => setShowCustomerHistory(false)}
+       customer={selectedCustomerDetails}
+     />
+   </>
+ );
 }

@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
     const pipeline: mongoose.PipelineStage[] = [];
 
-    // Lookup customers and stylists
+    // Lookup customers, stylists, and billing staff
     pipeline.push(
       {
         $lookup: {
@@ -39,8 +39,17 @@ export async function GET(req: Request) {
           as: 'stylistInfo'
         }
       },
+      {
+        $lookup: {
+          from: 'users', // Assuming billing staff are in 'users' collection
+          localField: 'billingStaffId',
+          foreignField: '_id',
+          as: 'billingStaffInfo'
+        }
+      },
       { $unwind: { path: "$customerInfo", preserveNullAndEmptyArrays: true } },
-      { $unwind: { path: "$stylistInfo", preserveNullAndEmptyArrays: true } }
+      { $unwind: { path: "$stylistInfo", preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: "$billingStaffInfo", preserveNullAndEmptyArrays: true } }
     );
 
     // Build match conditions
@@ -81,7 +90,7 @@ export async function GET(req: Request) {
     const appointments = await Appointment.populate(results, {
       path: 'serviceIds',
       model: ServiceItem,
-      select: 'name price duration membershipRate' // Include membershipRate
+      select: 'name price duration membershipRate'
     });
 
     const formattedAppointments = appointments.map(apt => ({
@@ -89,13 +98,13 @@ export async function GET(req: Request) {
       id: apt._id.toString(),
       customerId: apt.customerInfo,
       stylistId: apt.stylistInfo,
-      finalAmount: apt.finalAmount, // Ensure finalAmount is included
-      membershipDiscount: apt.membershipDiscount // Ensure membershipDiscount is included
+      billingStaff: apt.billingStaffInfo, // Include billing staff details
+      finalAmount: apt.finalAmount,
+      membershipDiscount: apt.membershipDiscount,
+      paymentDetails: apt.paymentDetails // Include payment splitting details
     }));
 
-    console.log("API Response - Appointments:", {
-      formattedAppointments});
-    
+    console.log("API Response - Appointments:", { formattedAppointments });
 
     return NextResponse.json({
       success: true,

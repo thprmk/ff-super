@@ -1,4 +1,4 @@
-// models/appointment.ts - ADD AMOUNT CALCULATION
+// models/Appointment.ts
 import mongoose, { Schema, model, models } from 'mongoose';
 import './Stylist'; 
 import './ServiceItem';
@@ -22,6 +22,13 @@ const appointmentSchema = new Schema({
     ref: 'Stylist',
     required: true,
     index: true
+  },
+  
+  // ADD BILLING STAFF REFERENCE
+  billingStaffId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    sparse: true
   },
   
   appointmentType: {
@@ -70,6 +77,30 @@ const appointmentSchema = new Schema({
     type: Number,
     default: 0,
     min: 0
+  },
+  
+  // SPLIT PAYMENT TRACKING
+  paymentDetails: {
+    cash: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    card: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    upi: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    other: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
   },
   
   invoiceId: { 
