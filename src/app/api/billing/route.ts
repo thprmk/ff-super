@@ -5,12 +5,30 @@ import Appointment from '@/models/Appointment';
 import Invoice from '@/models/invoice'; // Fixed typo in import (invoice -> Invoice)
 import Stylist from '@/models/Stylist';
 
+// FIX: Define an interface for the request body for type safety.
+interface BillingRequestBody {
+  appointmentId: string;
+  customerId: string;
+  stylistId: string;
+  billingStaffId: string;
+  items: any[]; // Ideally, specify a more concrete type for items
+  serviceTotal?: number;
+  productTotal?: number;
+  subtotal: number;
+  membershipDiscount?: number;
+  grandTotal: number;
+  paymentDetails: Record<string, number>; // This correctly types the payment object
+  notes?: string;
+  customerWasMember?: boolean;
+  membershipGrantedDuringBilling?: boolean;
+}
+
 export async function POST(req: Request) {
   try {
     await connectToDatabase();
 
-    // Read request body once
-    const body = await req.json();
+    // Read request body once and apply the defined type
+    const body: BillingRequestBody = await req.json();
     const {
       appointmentId,
       customerId,
@@ -42,8 +60,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validate payment amounts
-    const totalPaid = Object.values(paymentDetails).reduce((sum: number, amount: number) => sum + (amount || 0), 0);
+    // FIX: With `paymentDetails` now correctly typed, the `reduce` call is type-safe
+    // and `totalPaid` is correctly inferred as a `number`.
+    const totalPaid = Object.values(paymentDetails).reduce((sum, amount) => sum + (amount || 0), 0);
     if (Math.abs(totalPaid - grandTotal) > 0.01) {
       return NextResponse.json(
         {

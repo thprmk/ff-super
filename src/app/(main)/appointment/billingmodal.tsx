@@ -276,8 +276,10 @@ const BillingModal: React.FC<BillingModalProps> = ({
         const initialItems = appointment.serviceIds.map(service => {
           console.log('🔥 Processing service for bill:', service);
 
-          const hasDiscount = isMember && service.membershipRate;
-          const finalPrice = hasDiscount ? service.membershipRate : service.price;
+          // FIX: Use nullish coalescing to ensure `finalPrice` is always a number.
+          // If the customer is a member, use the membershipRate if it exists, otherwise fall back to the standard price.
+          // If not a member, use the standard price. This guarantees a `number` type.
+          const finalPrice = isMember ? (service.membershipRate ?? service.price) : service.price;
 
           return {
             itemType: 'service' as const,
@@ -419,7 +421,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
     }
 
     try {
-      const response = await fetch(`/api/customer/${customer._id}/toggle-membership`, {
+      const response = await fetch(`/api/customer/${customer.id}/toggle-membership`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -545,7 +547,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
       };
 
       console.log('🔥 Finalizing bill with details:', billDetails);
-      await onFinalizeAndPay(appointment._id, grandTotal, billDetails);
+      await onFinalizeAndPay(appointment.id, grandTotal, billDetails);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -593,7 +595,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
               </p>
             </div>
             <button onClick={onClose} className="text-gray-500 text-2xl hover:text-gray-700">
-              &times;
+              ×
             </button>
           </div>
 

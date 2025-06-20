@@ -23,7 +23,7 @@ interface CustomerFromAPI {
   _id: string;
   id: string;
   name: string;
-  phoneNumber?: string;
+  phoneNumber: string; // FIX: Changed from optional to required to match EditAppointmentForm prop type
   isMembership?: boolean;
 }
 
@@ -44,10 +44,18 @@ interface AppointmentWithCustomer {
   notes?: string;
   status: 'Appointment' | 'Checked-In' | 'Checked-Out' | 'Paid' | 'Cancelled' | 'No-Show';
   appointmentType: 'Online' | 'Offline';
-  serviceIds?: Array<{ _id: string; name: string; price: number; membershipRate?: number }>;
+  // FIX: Added the 'duration' property to match the type expected by EditAppointmentForm.
+  serviceIds?: Array<{ _id: string; name: string; price: number; membershipRate?: number; duration: number; }>;
   amount?: number;
   estimatedDuration?: number;
   actualDuration?: number;
+  
+  // FIX: Added missing properties to match usage in the component
+  appointmentTime?: string;
+  billingStaff?: StylistFromAPI;
+  paymentDetails?: Record<string, number>;
+  finalAmount?: number;
+  membershipDiscount?: number;
 }
 
 // --- Helper Functions ---
@@ -200,7 +208,6 @@ export default function AppointmentPage() {
 
       console.log('Appointment updated:', result.appointment);
 
-
       // If status changed to Checked-Out, open billing modal
       if (updateData.status === 'Checked-Out') {
         setSelectedAppointmentForBilling(result.appointment);
@@ -214,37 +221,51 @@ export default function AppointmentPage() {
     }
   };
 
-  const handleFinalizeBill = async (appointmentId: string, finalTotal: number, billDetails: any) => {
+  // NEW, ROBUST CODE. USE THIS INSTEAD.
+const handleFinalizeBill = async (appointmentId: string, finalTotal: number, billDetails: any) => {
     try {
+      // Defensive check: ensure we have a selected appointment in state.
+      if (!selectedAppointmentForBilling?._id) {
+        throw new Error("Could not find appointment to bill. Please close and try again.");
+      }
+
+      // Create the payload for the API call.
+      const payload = {
+        // IMPORTANT FIX: Use the ID directly from the reliable state object, not the argument.
+        appointmentId: selectedAppointmentForBilling._id, 
+        customerId: selectedAppointmentForBilling.customerId._id,
+        stylistId: selectedAppointmentForBilling.stylistId._id,
+        items: billDetails.items,
+        grandTotal: finalTotal,
+        paymentDetails: billDetails.paymentDetails,
+        notes: billDetails.notes,
+        customerWasMember: billDetails.customerWasMember,
+        membershipGrantedDuringBilling: billDetails.membershipGrantedDuringBilling,
+        billingStaffId: billDetails.billingStaffId,
+        serviceTotal: billDetails.serviceTotal,
+        productTotal: billDetails.productTotal,
+        subtotal: billDetails.subtotal,
+      };
+
       const response = await fetch(`/api/billing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appointmentId,
-          customerId: selectedAppointmentForBilling?.customerId._id,
-          stylistId: selectedAppointmentForBilling?.stylistId._id,
-          items: billDetails.items,
-          grandTotal: finalTotal,
-          paymentDetails: billDetails.paymentDetails,
-          notes: billDetails.notes,
-          membershipPurchase: billDetails.membershipPurchase,
-          billingStaffId: billDetails.billingStaffId,
-          serviceTotal: billDetails.serviceTotal,
-          productTotal: billDetails.productTotal,
-          subtotal: billDetails.subtotal
-        })
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(result.message || 'Failed to create invoice.');
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to create invoice.');
+      }
 
       toast.success('Payment completed successfully!');
       handleCloseBillingModal();
+
     } catch (err: any) {
       toast.error(err.message);
       throw err;
     }
-  };
+};
 
   const handleCloseBillingModal = () => {
     setIsBillingModalOpen(false);
@@ -370,7 +391,7 @@ export default function AppointmentPage() {
                         <div>{formatDate(appointment.date)}</div>
                         <div className="text-xs text-gray-500">{formatTime(appointment.time)}</div>
                       </td>
-                      {appointment.status === "Appointment" ? (
+                      {appointment.status === "Appointment" && appointment.appointmentTime ? (
                         <td className="px-6 py-4">
                           <div>{formatDate(appointment.appointmentTime)}</div>
                           <div className="text-xs text-gray-500">{formatTime(appointment.appointmentTime)}</div>
@@ -392,10 +413,10 @@ export default function AppointmentPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        {appointment.finalAmount ? (
+                        {appointment.finalAmount != null ? (
                           <div>
                             <div className="font-semibold text-green-600">₹{appointment.finalAmount.toFixed(2)}</div>
-                            {appointment.membershipDiscount > 0 && (
+                            {appointment.membershipDiscount != null && appointment.membershipDiscount > 0 && (
                               <div className="text-xs text-green-500">
                                 Saved ₹{appointment.membershipDiscount.toFixed(2)}
                               </div>

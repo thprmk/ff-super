@@ -23,7 +23,10 @@ export interface ICustomerModel extends Model<ICustomer> {
   checkBarcodeExists(barcode: string): Promise<boolean>;
 }
 
-const customerSchema = new mongoose.Schema({
+// FIX: Provide generic arguments to the Schema constructor. This tells TypeScript
+// that this schema will be used to create a model of type `ICustomerModel`,
+// which correctly types the `this` context in the static method definitions below.
+const customerSchema = new mongoose.Schema<ICustomer, ICustomerModel>({
   name: { type: String, required: true },
   phoneNumber: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true, index: true },

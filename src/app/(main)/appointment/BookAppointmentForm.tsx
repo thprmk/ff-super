@@ -204,28 +204,6 @@ const CustomerHistoryModal: React.FC<{
 // ===================================================================================
 
 
-interface AppointmentHistory {
-  _id: string;
-  date: string;
-  services: string[];
-  totalAmount: number;
-  stylistName: string;
-  status: string;
-}
-
-interface CustomerDetails {
-  _id: string;
-  name: string;
-  email: string;
-  phoneNumber: string;
-  isMember: boolean;
-  membershipDetails: { planName: string; status: string } | null;
-  lastVisit: string | null;
-  appointmentHistory: AppointmentHistory[];
-  loyaltyPoints?: number;
-  membershipBarcode?: string;
-}
-
 interface CustomerDetailPanelProps {
   customer: CustomerDetails | null;
   isLoading: boolean;
@@ -639,7 +617,6 @@ const CustomerDetailPanel: React.FC<CustomerDetailPanelProps> = ({
   );
 };
 
-
 // ===================================================================================
 //  MAIN BOOKING FORM COMPONENT
 // ===================================================================================
@@ -1027,7 +1004,9 @@ export default function BookAppointmentForm({
 
     setIsSubmitting(true);
     try {
-      const appointmentData = {
+      // FIX: Explicitly type `appointmentData` to ensure it matches the `NewBookingData` interface.
+      // This helps TypeScript correctly infer the type of `appointmentType`.
+      const appointmentData: NewBookingData = {
         ...formData,
         appointmentType: formData.status === 'Checked-In' ? 'Offline' : 'Online'
       };

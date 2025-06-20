@@ -116,7 +116,9 @@ const appointmentSchema = new Schema({
 }, { timestamps: true });
 
 // Method to calculate appointment total
-appointmentSchema.methods.calculateTotal = async function(includeAdditionalItems = []) {
+// FIX: Added an explicit type for the `includeAdditionalItems` parameter.
+// This tells TypeScript that the array contains objects with a `finalPrice` property.
+appointmentSchema.methods.calculateTotal = async function(includeAdditionalItems: { finalPrice: number }[] = []) {
   await this.populate('serviceIds customerId');
   
   let serviceTotal = 0;

@@ -33,10 +33,7 @@ function LoginFormWrapper() {
 
   // 2. ADD THIS LINE: State to manage password visibility
   const [showPassword, setShowPassword] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
     setError('');
 
     try {
