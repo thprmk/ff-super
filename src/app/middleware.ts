@@ -50,6 +50,9 @@ export async function middleware(request: NextRequest) {
     const hasAccess = requiredPermissions.some(permission => 
       hasPermission(user.permissions, permission)
     );
+
+    console.log(`User ${user.id} accessing ${pathname} with permissions: ${JSON.stringify(user.permissions)}`);
+    
     
     if (!hasAccess) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));

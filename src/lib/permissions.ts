@@ -90,7 +90,7 @@ export const PERMISSION_CATEGORIES = {
   REPORTS_ACCESS: 'Reports Access',
   EB_MANAGEMENT: 'EB Management',
   PROCUREMENT_MANAGEMENT: 'Procurement Management', // New category
-  DAYEND_MANAGEMENT: 'Day-end Management' // New category
+  DAYEND_MANAGEMENT: 'Day-end Closing Management'
 
 } as const;
 

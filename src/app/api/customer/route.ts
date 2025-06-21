@@ -35,11 +35,11 @@ export async function GET(req: Request) {
     await connectToDatabase();
 
 
-     const session = await getServerSession(authOptions);
-  if (!session || !hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_READ)) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-    
+    const session = await getServerSession(authOptions);
+    if (!session || !hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_READ)) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     // --- 1. Read Parameters from URL ---
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -69,11 +69,11 @@ export async function GET(req: Request) {
         .skip(skip)
         .limit(limit)
         .lean<LeanCustomer[]>(),
-      
+
       // Query 2: Get the *total count* of customers that are active and match search
       Customer.countDocuments(query)
     ]);
-    
+
     // --- 4. Calculate 'Active/Inactive/New' Status for Each Customer ---
     const customerIds = customersFromDb.map(c => c._id);
     const latestAppointments = await Appointment.aggregate<AggregatedAppointment>([
@@ -81,7 +81,7 @@ export async function GET(req: Request) {
       { $sort: { date: -1 } },
       { $group: { _id: '$customerId', lastAppointmentDate: { $first: '$date' } } }
     ]);
-    
+
     const appointmentMap = new Map(latestAppointments.map(a => [a._id.toString(), a.lastAppointmentDate]));
     const twoMonthsAgo = new Date();
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
@@ -89,13 +89,13 @@ export async function GET(req: Request) {
     const customersWithStatus = customersFromDb.map(customer => {
       let status: 'Active' | 'Inactive' | 'New' = 'New';
       const lastAppointmentDate = appointmentMap.get(customer._id.toString());
-      
+
       if (lastAppointmentDate) {
         status = new Date(lastAppointmentDate) >= twoMonthsAgo ? 'Active' : 'Inactive';
       } else if (customer.createdAt) {
         status = new Date(customer.createdAt) < twoMonthsAgo ? 'Inactive' : 'New';
       }
-      
+
       return {
         ...customer,
         id: customer._id.toString(),
@@ -132,29 +132,29 @@ export async function POST(req: Request) {
     await connectToDatabase();
     const body = await req.json();
 
-  const session = await getServerSession(authOptions);
-  if (!session || !hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_CREATE)) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
+    const session = await getServerSession(authOptions);
+    if (!session || !hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_CREATE)) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
 
-    
+
     if (!body.name || !body.phoneNumber) {
-        return NextResponse.json({ success: false, message: 'Name and Phone Number are required.' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Name and Phone Number are required.' }, { status: 400 });
     }
 
     const normalizedPhoneNumber = String(body.phoneNumber).replace(/\D/g, '');
 
     const existingCustomer = await Customer.findOne({ phoneNumber: normalizedPhoneNumber });
     if (existingCustomer) {
-        return NextResponse.json({ success: false, message: 'A customer with this phone number already exists.', exists: true, customer: existingCustomer }, { status: 409 });
+      return NextResponse.json({ success: false, message: 'A customer with this phone number already exists.', exists: true, customer: existingCustomer }, { status: 409 });
     }
 
     // New customers are active by default because of the schema setting `isActive: true`
-  // New customers are active by default because of the schema setting `isActive: true`
+    // New customers are active by default because of the schema setting `isActive: true`
     const newCustomer = await Customer.create({
-        ...body,
-        phoneNumber: normalizedPhoneNumber,
-        gender: body.gender || 'other', // ADD THIS LINE
+      ...body,
+      phoneNumber: normalizedPhoneNumber,
+      gender: body.gender || 'other', // ADD THIS LINE
     });
 
 
