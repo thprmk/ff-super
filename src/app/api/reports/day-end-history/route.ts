@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/dbConnect';
 import DayEndReport from '@/models/DayEndReport';
 import User from '@/models/user'; // This import is necessary for .populate()
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 /**
  * API endpoint to fetch the history of Day-End Closing reports, with optional date filtering.
@@ -11,9 +12,13 @@ import User from '@/models/user'; // This import is necessary for .populate()
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ success: false, message: "Not Authenticated" }, { status: 401 });
-    }
+  
+  if (!session || !hasPermission(session.user.role.permissions, PERMISSIONS.DAYEND_READ)) {
+    return NextResponse.json(
+      { success: false, message: 'Unauthorized' },
+      { status: 403 }
+    );
+  }
     
     await dbConnect();
     

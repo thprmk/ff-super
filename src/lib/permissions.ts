@@ -27,13 +27,37 @@ export const PERMISSIONS = {
   APPOINTMENTS_DELETE: 'appointments:delete',
   APPOINTMENTS_MANAGE: 'appointments:manage',
 
+  // ** NEW PERMISSIONS FOR SHOP MODULE **
+
+  // Stylist Management
+  STYLISTS_CREATE: 'stylists:create',
+  STYLISTS_READ: 'stylists:read',
+  STYLISTS_UPDATE: 'stylists:update',
+  STYLISTS_DELETE: 'stylists:delete',
+
+  // Product Management
+  PRODUCTS_CREATE: 'products:create',
+  PRODUCTS_READ: 'products:read',
+  PRODUCTS_UPDATE: 'products:update',
+  PRODUCTS_DELETE: 'products:delete',
+
+  // Service Management
+  SERVICES_CREATE: 'services:create',
+  SERVICES_READ: 'services:read',
+  SERVICES_UPDATE: 'services:update',
+  SERVICES_DELETE: 'services:delete',
 
 
   // Dashboard access
   DASHBOARD_READ: 'dashboard:read',
   DASHBOARD_MANAGE: 'dashboard:manage',
 
-
+  // Day-end Closing management
+  DAYEND_CREATE: 'dayend:create',
+  DAYEND_READ: 'dayend:read',
+  DAYEND_UPDATE: 'dayend:update',
+  DAYEND_DELETE: 'dayend:delete',
+  DAYEND_MANAGE: 'dayend:manage',
 
 
   // EB (Electricity Bill) management
@@ -59,10 +83,15 @@ export const PERMISSION_CATEGORIES = {
   SERVICES_MANAGEMENT: 'Services Management',
   STAFF_MANAGEMENT: 'Staff Management',
   INVENTORY_MANAGEMENT: 'Inventory Management',
-  REPORTS_ACCESS: 'Reports Access',
+  STYLIST_MANAGEMENT: 'Stylist Management',
+  PRODUCT_MANAGEMENT: 'Product Management',
+  SERVICE_MANAGEMENT: 'Service Management',
   SETTINGS_MANAGEMENT: 'Settings Management',
+  REPORTS_ACCESS: 'Reports Access',
   EB_MANAGEMENT: 'EB Management',
-  PROCUREMENT_MANAGEMENT: 'Procurement Management' // New category
+  PROCUREMENT_MANAGEMENT: 'Procurement Management', // New category
+  DAYEND_MANAGEMENT: 'Day-end Management' // New category
+
 } as const;
 
 export const ALL_PERMISSIONS = [
@@ -94,7 +123,7 @@ export const ALL_PERMISSIONS = [
   { permission: PERMISSIONS.APPOINTMENTS_DELETE, description: 'Delete appointments', category: PERMISSION_CATEGORIES.APPOINTMENT_MANAGEMENT },
   { permission: PERMISSIONS.APPOINTMENTS_MANAGE, description: 'Full appointment management access', category: PERMISSION_CATEGORIES.APPOINTMENT_MANAGEMENT },
 
- 
+
 
   // Dashboard Access
   { permission: PERMISSIONS.DASHBOARD_READ, description: 'View dashboard information', category: PERMISSION_CATEGORIES.DASHBOARD_ACCESS },
@@ -109,6 +138,32 @@ export const ALL_PERMISSIONS = [
   { permission: PERMISSIONS.PROCUREMENT_READ, description: 'View procurement records', category: PERMISSION_CATEGORIES.PROCUREMENT_MANAGEMENT },
   { permission: PERMISSIONS.PROCUREMENT_UPDATE, description: 'Update procurement records', category: PERMISSION_CATEGORIES.PROCUREMENT_MANAGEMENT },
   { permission: PERMISSIONS.PROCUREMENT_DELETE, description: 'Delete procurement records', category: PERMISSION_CATEGORIES.PROCUREMENT_MANAGEMENT },
+
+  // Day-end Closing Management
+  { permission: PERMISSIONS.DAYEND_CREATE, description: 'Create day-end closing reports', category: PERMISSION_CATEGORIES.DAYEND_MANAGEMENT },
+  { permission: PERMISSIONS.DAYEND_READ, description: 'View day-end closing reports', category: PERMISSION_CATEGORIES.DAYEND_MANAGEMENT },
+  { permission: PERMISSIONS.DAYEND_UPDATE, description: 'Update day-end closing reports', category: PERMISSION_CATEGORIES.DAYEND_MANAGEMENT },
+  { permission: PERMISSIONS.DAYEND_DELETE, description: 'Delete day-end closing reports', category: PERMISSION_CATEGORIES.DAYEND_MANAGEMENT },
+  { permission: PERMISSIONS.DAYEND_MANAGE, description: 'Full day-end closing management access', category: PERMISSION_CATEGORIES.DAYEND_MANAGEMENT },
+
+  // Stylist Management
+  { permission: PERMISSIONS.STYLISTS_CREATE, description: 'Create new stylists', category: PERMISSION_CATEGORIES.STYLIST_MANAGEMENT },
+  { permission: PERMISSIONS.STYLISTS_READ, description: 'View stylist information', category: PERMISSION_CATEGORIES.STYLIST_MANAGEMENT },
+  { permission: PERMISSIONS.STYLISTS_UPDATE, description: 'Update stylist information', category: PERMISSION_CATEGORIES.STYLIST_MANAGEMENT },
+  { permission: PERMISSIONS.STYLISTS_DELETE, description: 'Delete stylists', category: PERMISSION_CATEGORIES.STYLIST_MANAGEMENT },
+
+  // Product Management
+  { permission: PERMISSIONS.PRODUCTS_CREATE, description: 'Create new products, brands, and categories', category: PERMISSION_CATEGORIES.PRODUCT_MANAGEMENT },
+  { permission: PERMISSIONS.PRODUCTS_READ, description: 'View product information', category: PERMISSION_CATEGORIES.PRODUCT_MANAGEMENT },
+  { permission: PERMISSIONS.PRODUCTS_UPDATE, description: 'Update product information', category: PERMISSION_CATEGORIES.PRODUCT_MANAGEMENT },
+  { permission: PERMISSIONS.PRODUCTS_DELETE, description: 'Delete products, brands, and categories', category: PERMISSION_CATEGORIES.PRODUCT_MANAGEMENT },
+
+  // Service Management
+  { permission: PERMISSIONS.SERVICES_CREATE, description: 'Create new services and categories', category: PERMISSION_CATEGORIES.SERVICE_MANAGEMENT },
+  { permission: PERMISSIONS.SERVICES_READ, description: 'View service information', category: PERMISSION_CATEGORIES.SERVICE_MANAGEMENT },
+  { permission: PERMISSIONS.SERVICES_UPDATE, description: 'Update service information', category: PERMISSION_CATEGORIES.SERVICE_MANAGEMENT },
+  { permission: PERMISSIONS.SERVICES_DELETE, description: 'Delete services and categories', category: PERMISSION_CATEGORIES.SERVICE_MANAGEMENT },
+
 
   // Super Admin
   { permission: PERMISSIONS.ALL, description: 'Full system access (Super Admin)', category: 'System Administration' }
@@ -166,7 +221,9 @@ export const ROLE_TEMPLATES = {
       PERMISSIONS.PROCUREMENT_CREATE, // Added
       PERMISSIONS.PROCUREMENT_READ,   // Added
       PERMISSIONS.PROCUREMENT_UPDATE, // Added
-      PERMISSIONS.PROCUREMENT_DELETE  // Added
+      PERMISSIONS.PROCUREMENT_DELETE, // Added
+
+      PERMISSIONS.DAYEND_MANAGE
     ]
   },
   MANAGER: {
@@ -180,7 +237,11 @@ export const ROLE_TEMPLATES = {
       PERMISSIONS.PROCUREMENT_CREATE, // Added
       PERMISSIONS.PROCUREMENT_READ,   // Added
       PERMISSIONS.PROCUREMENT_UPDATE, // Added
-      PERMISSIONS.PROCUREMENT_DELETE  // Added
+      PERMISSIONS.PROCUREMENT_DELETE,  // Added
+
+      PERMISSIONS.DAYEND_CREATE, // Added
+      PERMISSIONS.DAYEND_READ,   // Added
+      PERMISSIONS.DAYEND_UPDATE  // Added
     ]
   },
   STAFF: {
@@ -192,7 +253,8 @@ export const ROLE_TEMPLATES = {
       PERMISSIONS.APPOINTMENTS_READ,
       PERMISSIONS.APPOINTMENTS_UPDATE,
       PERMISSIONS.DASHBOARD_READ,
-      PERMISSIONS.PROCUREMENT_READ // Added
+      PERMISSIONS.PROCUREMENT_READ,
+      PERMISSIONS.DAYEND_READ // Added
     ]
   },
   RECEPTIONIST: {
@@ -202,7 +264,9 @@ export const ROLE_TEMPLATES = {
       PERMISSIONS.CUSTOMERS_MANAGE,
       PERMISSIONS.APPOINTMENTS_MANAGE,
       PERMISSIONS.DASHBOARD_READ,
-      PERMISSIONS.EB_UPLOAD
+      PERMISSIONS.EB_UPLOAD,
+      PERMISSIONS.DAYEND_CREATE, // Added
+      PERMISSIONS.DAYEND_READ
     ]
   }
 };

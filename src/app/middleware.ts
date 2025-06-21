@@ -10,7 +10,9 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   '/appointment': ['appointments:read'],
   '/admin': ['users:read', 'roles:read'],
   '/admin/users': ['users:read'],
-  '/admin/roles': ['roles:read']
+  '/admin/roles': ['roles:read'],
+    '/DayendClosing': ['dayend:read'], // Added
+  '/DayendClosing/history': ['dayend:read'] // Added
 };
 
 export async function middleware(request: NextRequest) {

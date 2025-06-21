@@ -43,6 +43,8 @@ const Sidebar = () => {
   const canAccessEBUpload = hasPermission(userPermissions, PERMISSIONS.EB_UPLOAD);
   const canAccessEBViewCalculate = hasPermission(userPermissions, PERMISSIONS.EB_VIEW_CALCULATE);
   const canAccessProcurement = hasPermission(userPermissions, PERMISSIONS.PROCUREMENT_READ);
+    const canAccessDayEnd = hasPermission(userPermissions, PERMISSIONS.DAYEND_READ);
+
  
 
 
@@ -57,7 +59,7 @@ const Sidebar = () => {
     { href: '/eb-upload', label: 'EB Upload', icon: LightBulbIcon, show: canAccessEBUpload },
     { href: '/eb-view', label: 'EB View & Calculate', icon: DocumentTextIcon, show: canAccessEBViewCalculate },
     { href: '/procurement', label: 'Procurements', icon: ShoppingCartIcon, show: canAccessProcurement },
-     { href:'/DayendClosing', label:'Day-end Closing', icon:BanknotesIcon, show: true }
+     { href:'/DayendClosing', label:'Day-end Closing', icon:BanknotesIcon, show: canAccessDayEnd }
   ];
 
   const adminItems = [

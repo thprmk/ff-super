@@ -3,6 +3,9 @@ import connectToDatabase from '@/lib/mongodb';
 import Customer from '@/models/customermodel';
 import Appointment from '@/models/Appointment';
 import mongoose from 'mongoose';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 // ===================================================================================
 //  TYPE DEFINITIONS
@@ -30,6 +33,12 @@ interface AggregatedAppointment {
 export async function GET(req: Request) {
   try {
     await connectToDatabase();
+
+
+     const session = await getServerSession(authOptions);
+  if (!session || !hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_READ)) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
     
     // --- 1. Read Parameters from URL ---
     const { searchParams } = new URL(req.url);
@@ -122,6 +131,12 @@ export async function POST(req: Request) {
   try {
     await connectToDatabase();
     const body = await req.json();
+
+  const session = await getServerSession(authOptions);
+  if (!session || !hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_CREATE)) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
+
     
     if (!body.name || !body.phoneNumber) {
         return NextResponse.json({ success: false, message: 'Name and Phone Number are required.' }, { status: 400 });

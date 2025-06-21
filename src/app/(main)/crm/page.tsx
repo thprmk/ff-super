@@ -8,8 +8,13 @@ import { useCrm } from './hooks/useCrm';
 import { CustomerTable } from './components/CustomerTable';
 import CrmCustomerDetailPanel from './components/CrmCustomerDetailPanel';
 import AddEditCustomerModal from './components/AddEditCustomerModal';
+import { useSession } from 'next-auth/react';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 export default function CrmPage() {
+
+    const { data: session } = useSession();
+
   const {
     // Data State
     customers,
@@ -41,6 +46,10 @@ export default function CrmPage() {
     handleGrantMembership,
   } = useCrm();
 
+   const canCreateCustomers = session && hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_CREATE);
+  const canUpdateCustomers = session && hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_UPDATE);
+  const canDeleteCustomers = session && hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_DELETE);
+
   return (
     <div className="min-h-screen bg-gray-50/30">
       <main
@@ -53,13 +62,15 @@ export default function CrmPage() {
             <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
             <p className="text-sm text-gray-600">Manage your entire customer base.</p>
           </div>
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-black rounded-lg shadow-sm hover:bg-gray-800 transition-colors"
-          >
-            <PlusIcon className="w-5 h-5" />
-            Add Customer
-          </button>
+        {canCreateCustomers && (
+            <button
+              onClick={handleOpenAddModal}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-black rounded-lg shadow-sm hover:bg-gray-800 transition-colors"
+            >
+              <PlusIcon className="w-5 h-5" />
+              Add Customer
+            </button>
+          )}
         </header>
 
         {/* Main Content Area */}
@@ -84,16 +95,16 @@ export default function CrmPage() {
             </div>
           )}
 
-          {!isLoading && !pageError && customers.length > 0 && (
-            <CustomerTable
-              customers={customers}
-              pagination={pagination}
-              onViewDetails={handleViewCustomerDetails}
-              onEdit={handleOpenEditModal}
-              onDelete={handleDeleteCustomer}
-              onGoToPage={goToPage}
-            />
-          )}
+             {!isLoading && !pageError && customers.length > 0 && (
+          <CustomerTable
+            customers={customers}
+            pagination={pagination}
+            onViewDetails={handleViewCustomerDetails}
+            onEdit={canUpdateCustomers ? handleOpenEditModal : undefined}
+            onDelete={canDeleteCustomers ? handleDeleteCustomer : undefined}
+            onGoToPage={goToPage}
+          />
+        )}
         </div>
       </main>
 

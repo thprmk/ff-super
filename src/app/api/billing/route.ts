@@ -65,9 +65,9 @@ export async function POST(req: Request) {
     const customer = await Customer.findById(customerId);
     const customerGender = customer?.gender || 'other';
 
-    // Calculate and apply inventory updates for services
-    try {
-  console.log('Starting inventory updates...');
+    // app/api/billing/route.ts - Update the inventory section
+try {
+  console.log('Starting inventory updates for billing...');
   
   const serviceIds = appointment.serviceIds.map((s: any) => s._id.toString());
   console.log('Service IDs for inventory:', serviceIds);
@@ -80,21 +80,23 @@ export async function POST(req: Request) {
       serviceId,
       customerGender
     );
+    console.log(`Service ${serviceId} inventory updates:`, serviceUpdates);
     allInventoryUpdates.push(...serviceUpdates);
   }
 
-  console.log('Calculated inventory updates:', allInventoryUpdates);
+  console.log('Total inventory updates to apply:', allInventoryUpdates);
 
   if (allInventoryUpdates.length > 0) {
     // Apply inventory updates
     const inventoryResult = await InventoryManager.applyInventoryUpdates(allInventoryUpdates);
+    
+    console.log('Inventory update result:', inventoryResult);
     
     if (!inventoryResult.success) {
       console.warn('Inventory update warnings:', inventoryResult.errors);
       // You might want to decide whether to proceed or halt billing here
     }
 
-    console.log('Inventory updates applied successfully');
     if (inventoryResult.restockAlerts.length > 0) {
       console.log('Products needing restock:', inventoryResult.restockAlerts);
     }

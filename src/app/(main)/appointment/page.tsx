@@ -5,9 +5,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import BookAppointmentForm, { NewBookingData } from './BookAppointmentForm';
 import BillingModal from './billingmodal';
 import {
-  CalendarIcon,
-  ClockIcon,
-  UserGroupIcon,
   PlusIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -15,6 +12,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
 import EditAppointmentForm from '@/components/EditAppointmentForm';
+import { useSession } from 'next-auth/react';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 // ===================================================================================
 //  INTERFACES
@@ -105,6 +104,10 @@ const getStatusColor = (status: string) => {
 //  MAIN PAGE COMPONENT
 // ===================================================================================
 export default function AppointmentPage() {
+
+  const { data: session } = useSession();
+
+
   const [allAppointments, setAllAppointments] = useState<AppointmentWithCustomer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -264,6 +267,10 @@ export default function AppointmentPage() {
     setStatusFilter(newStatus);
   };
 
+   const canCreateAppointments = session && hasPermission(session.user.role.permissions, PERMISSIONS.APPOINTMENTS_CREATE);
+  const canUpdateAppointments = session && hasPermission(session.user.role.permissions, PERMISSIONS.APPOINTMENTS_UPDATE);
+
+
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
   };
@@ -273,13 +280,15 @@ export default function AppointmentPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Appointments</h1>
-        <button
-          onClick={() => setIsBookAppointmentModalOpen(true)}
-          className="px-4 py-2.5 bg-black text-white rounded-lg flex items-center gap-2 hover:bg-gray-800"
-        >
-          <PlusIcon className="h-5 w-5" />
-          <span>Book Appointment</span>
-        </button>
+        {canCreateAppointments && (
+            <button
+            onClick={() => setIsBookAppointmentModalOpen(true)}
+            className="px-4 py-2.5 bg-black text-white rounded-lg flex items-center gap-2 hover:bg-gray-800"
+            >
+            <PlusIcon className="h-5 w-5" />
+            <span>Book Appointment</span>
+            </button>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -420,13 +429,15 @@ export default function AppointmentPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          <button
-                            onClick={() => handleEditAppointment(appointment)}
-                            className="px-3 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded-full hover:bg-blue-200 flex items-center gap-1"
-                          >
-                            <PencilIcon className="w-3 h-3" />
-                            Edit
-                          </button>
+                          {canUpdateAppointments && (
+                <button
+                    onClick={() => handleEditAppointment(appointment)}
+                    className="px-3 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded-full hover:bg-blue-200 flex items-center gap-1"
+                >
+                    <PencilIcon className="w-3 h-3" />
+                    Edit
+                </button>
+            )}
                         </div>
                       </td>
                     </tr>
