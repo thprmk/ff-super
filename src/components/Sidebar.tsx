@@ -37,14 +37,13 @@ const Sidebar = () => {
   const canAccessDashboard = hasPermission(userPermissions, PERMISSIONS.DASHBOARD_READ);
   const canAccessAppointments = hasPermission(userPermissions, PERMISSIONS.APPOINTMENTS_READ);
   const canAccessCustomers = hasPermission(userPermissions, PERMISSIONS.CUSTOMERS_READ);
-  const canAccessBilling = hasPermission(userPermissions, PERMISSIONS.BILLING_READ);
+
   const canAccessUsers = hasPermission(userPermissions, PERMISSIONS.USERS_READ);
   const canAccessRoles = hasPermission(userPermissions, PERMISSIONS.ROLES_READ);
   const canAccessEBUpload = hasPermission(userPermissions, PERMISSIONS.EB_UPLOAD);
   const canAccessEBViewCalculate = hasPermission(userPermissions, PERMISSIONS.EB_VIEW_CALCULATE);
   const canAccessProcurement = hasPermission(userPermissions, PERMISSIONS.PROCUREMENT_READ);
-  const canAccessStore = hasPermission(userPermissions, PERMISSIONS.INVENTORY_READ);
-  const canAccessDayEndClosing = hasPermission(userPermissions, PERMISSIONS.REPORTS_MANAGE);
+ 
 
 
   // --- MERGED NAVIGATION ITEMS ---
@@ -54,11 +53,11 @@ const Sidebar = () => {
     { href: '/crm', label: 'Customers', icon: UserGroupIcon, show: canAccessCustomers },
     // { href: '/billing', label: 'Billing', icon: CreditCardIcon, show: canAccessBilling },
     // This was '/shop' in one file and not present in the other. I've used '/store' as that's the common name.
-    { href: '/shop', label: 'Shop', icon: BuildingStorefrontIcon, show: canAccessStore },
+    { href: '/shop', label: 'Shop', icon: BuildingStorefrontIcon, show: true },
     { href: '/eb-upload', label: 'EB Upload', icon: LightBulbIcon, show: canAccessEBUpload },
     { href: '/eb-view', label: 'EB View & Calculate', icon: DocumentTextIcon, show: canAccessEBViewCalculate },
     { href: '/procurement', label: 'Procurements', icon: ShoppingCartIcon, show: canAccessProcurement },
-     { href:'/DayendClosing', label:'Day-end Closing', icon:BanknotesIcon, show: canAccessDayEndClosing }
+     { href:'/DayendClosing', label:'Day-end Closing', icon:BanknotesIcon, show: true }
   ];
 
   const adminItems = [

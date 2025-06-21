@@ -166,7 +166,6 @@ export default function DashboardPage() {
   // Permission checks
   const canViewCustomers = session && hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_READ);
   const canViewAppointments = session && hasPermission(session.user.role.permissions, PERMISSIONS.APPOINTMENTS_READ);
-  const canViewBilling = session && hasPermission(session.user.role.permissions, PERMISSIONS.BILLING_READ);
   const canCreateAppointments = session && hasPermission(session.user.role.permissions, PERMISSIONS.APPOINTMENTS_CREATE);
   const canCreateCustomers = session && hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_CREATE);
 
@@ -337,14 +336,7 @@ export default function DashboardPage() {
                 onClick={() => window.location.href = '/crm'}
               />
             )}
-            {canViewBilling && (
-              <QuickActionCard
-                title="View Reports"
-                description="Check sales and performance reports"
-                icon={ChartBarIcon}
-                onClick={() => window.location.href = '/reports'}
-              />
-            )}
+          
           </div>
         </div>
       )}
