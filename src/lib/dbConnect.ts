@@ -1,7 +1,7 @@
 // src/lib/dbConnect.ts
 import mongoose from 'mongoose';
 
-const MONGODB_URI = "mongodb+srv://harisrini777:3iANzOOzDLZSPmSK@saloon-freshface.ipibhgf.mongodb.net/?retryWrites=true&w=majority&appName=Saloon-FreshFace";
+const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
   throw new Error(

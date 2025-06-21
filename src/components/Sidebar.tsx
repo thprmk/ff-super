@@ -15,7 +15,9 @@ import {
   LightBulbIcon,
   DocumentTextIcon,
   ShoppingCartIcon,
-  BuildingStorefrontIcon // Added from the second file
+  BuildingStorefrontIcon, // Added from the second file
+  BanknotesIcon
+   // Added from the second file
 } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
@@ -41,7 +43,8 @@ const Sidebar = () => {
   const canAccessEBUpload = hasPermission(userPermissions, PERMISSIONS.EB_UPLOAD);
   const canAccessEBViewCalculate = hasPermission(userPermissions, PERMISSIONS.EB_VIEW_CALCULATE);
   const canAccessProcurement = hasPermission(userPermissions, PERMISSIONS.PROCUREMENT_READ);
-  // const canAccessStore = hasPermission(userPermissions, PERMISSIONS.STORE_READ);
+  const canAccessStore = hasPermission(userPermissions, PERMISSIONS.INVENTORY_READ);
+  const canAccessDayEndClosing = hasPermission(userPermissions, PERMISSIONS.REPORTS_MANAGE);
 
 
   // --- MERGED NAVIGATION ITEMS ---
@@ -51,10 +54,11 @@ const Sidebar = () => {
     { href: '/crm', label: 'Customers', icon: UserGroupIcon, show: canAccessCustomers },
     // { href: '/billing', label: 'Billing', icon: CreditCardIcon, show: canAccessBilling },
     // This was '/shop' in one file and not present in the other. I've used '/store' as that's the common name.
-    { href: '/shop', label: 'Shop', icon: BuildingStorefrontIcon, show: true },
+    { href: '/shop', label: 'Shop', icon: BuildingStorefrontIcon, show: canAccessStore },
     { href: '/eb-upload', label: 'EB Upload', icon: LightBulbIcon, show: canAccessEBUpload },
     { href: '/eb-view', label: 'EB View & Calculate', icon: DocumentTextIcon, show: canAccessEBViewCalculate },
     { href: '/procurement', label: 'Procurements', icon: ShoppingCartIcon, show: canAccessProcurement },
+     { href:'/DayendClosing', label:'Day-end Closing', icon:BanknotesIcon, show: canAccessDayEndClosing }
   ];
 
   const adminItems = [

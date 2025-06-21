@@ -2,27 +2,24 @@ import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Customer from '@/models/customermodel';
 import Appointment from '@/models/Appointment';
-import ServiceItem from '@/models/ServiceItem'; // Fixed: Use ServiceItem consistently
+import ServiceItem from '@/models/ServiceItem';
 import Stylist from '@/models/Stylist';
-import CustomerMembership from '@/models/customerMembership';
-import MembershipPlan from '@/models/membershipPlan';
 import LoyaltyTransaction from '@/models/loyaltyTransaction';
 import mongoose from 'mongoose';
 
-// --- TYPE DEFINITIONS ---
+// This interface should reflect the actual fields in your Customer model
 interface LeanCustomer { 
   _id: mongoose.Types.ObjectId; 
   createdAt?: Date; 
   name: string; 
   email?: string; 
   phoneNumber: string; 
-  gender?: string; // ADD THIS LINE
-  membershipStatus?: string;
-  currentMembershipId?: mongoose.Types.ObjectId;
+  isActive: boolean; // Add this field
+  isMembership: boolean; // This is the key field for your simple system
 }
 
 // ===================================================================================
-//  GET: Handler for fetching full customer details for the side panel
+//  GET: Handler for fetching full customer details (FIXED)
 // ===================================================================================
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   const customerId = params.id;
@@ -33,43 +30,19 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   try {
     await connectToDatabase();
     
+    // Fetch the core customer data, including the simple `isMembership` field
     const customer = await Customer.findById(customerId).lean<LeanCustomer>();
     if (!customer) {
       return NextResponse.json({ success: false, message: 'Customer not found.' }, { status: 404 });
     }
 
-    // Fetch all related customer data in parallel for performance
-    const [activeMembership, allRecentAppointments, loyaltyData] = await Promise.all([
-      // Query 1: Find the customer's active membership
-      CustomerMembership.findOne({ 
-        customerId: customer._id, 
-        status: 'Active', 
-        endDate: { $gte: new Date() } 
-      }).populate({ 
-        path: 'membershipPlanId', 
-        model: MembershipPlan, 
-        select: 'name discountPercentageServices' 
-      }),
-
-      // Query 2: Find recent appointments
-      Appointment.find({ customerId: customer._id })
-        .sort({ date: -1 })
-        .limit(20)
-        .lean(),
-
-      // Query 3: Calculate loyalty points
+    // Fetch related data in parallel.
+    // NOTE: We no longer need to query the complex CustomerMembership collection.
+    const [allRecentAppointments, loyaltyData] = await Promise.all([
+      Appointment.find({ customerId: customer._id }).sort({ date: -1 }).limit(20).lean(),
       LoyaltyTransaction.aggregate([
         { $match: { customerId: customer._id } },
-        {
-          $group: {
-            _id: null,
-            totalPoints: {
-              $sum: {
-                $cond: [{ $eq: ['$type', 'Credit'] }, '$points', { $multiply: ['$points', -1] }]
-              }
-            }
-          }
-        }
+        { $group: { _id: null, totalPoints: { $sum: { $cond: [{ $eq: ['$type', 'Credit'] }, '$points', { $multiply: ['$points', -1] }] } } } }
       ])
     ]);
 
@@ -79,72 +52,45 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
 
     if (allRecentAppointments.length > 0) {
-      const lastAppointmentDate = new Date(allRecentAppointments[0].date);
-      activityStatus = lastAppointmentDate >= twoMonthsAgo ? 'Active' : 'Inactive';
+      activityStatus = new Date(allRecentAppointments[0].date) >= twoMonthsAgo ? 'Active' : 'Inactive';
     } else if (customer.createdAt) {
-      const customerCreationDate = new Date(customer.createdAt);
-      activityStatus = customerCreationDate < twoMonthsAgo ? 'Inactive' : 'New';
+      activityStatus = new Date(customer.createdAt) < twoMonthsAgo ? 'Inactive' : 'New';
     }
 
     const calculatedLoyaltyPoints = loyaltyData.length > 0 ? loyaltyData[0].totalPoints : 0;
 
-    // Get only paid appointments for history
-    const paidAppointmentIds = allRecentAppointments
-      .filter(apt => apt.status === 'Paid')
-      .slice(0, 10)
-      .map(apt => apt._id);
-
-    // Populate the appointment history with ServiceItem references
-    const populatedHistory = await Appointment.find({ 
-      _id: { $in: paidAppointmentIds } 
-    })
+    // Get paid appointment history
+    const paidAppointmentIds = allRecentAppointments.filter(apt => apt.status === 'Paid').slice(0, 10).map(apt => apt._id);
+    const populatedHistory = await Appointment.find({ _id: { $in: paidAppointmentIds } })
       .sort({ date: -1 })
-      .populate({ 
-        path: 'stylistId', 
-        model: Stylist, 
-        select: 'name' 
-      })
-      .populate({ 
-        path: 'serviceIds', 
-        model: ServiceItem, // Fixed: Use ServiceItem
-        select: 'name price' 
-      })
+      .populate({ path: 'stylistId', model: Stylist, select: 'name' })
+      .populate({ path: 'serviceIds', model: ServiceItem, select: 'name price' })
       .lean();
 
-    // Construct the customer details object
+    // --- CONSTRUCT THE FINAL, CORRECT OBJECT ---
     const customerDetails = {
-      _id: customer._id.toString(),
       id: customer._id.toString(),
       name: customer.name,
       email: customer.email,
       phoneNumber: customer.phoneNumber,
       status: activityStatus,
       loyaltyPoints: calculatedLoyaltyPoints,
-            gender: customer.gender || 'other', // ADD THIS LINE
+      
+      // --- THE CRITICAL FIX ---
+      // We now use the simple `isMembership` boolean from the Customer model
+      // as the single source of truth for the `currentMembership` property
+      // that the front-end panel component uses.
+      currentMembership: customer.isMembership,
+      
+      createdAt: customer.createdAt || customer._id.getTimestamp(),
 
-      // Membership information
-      isMember: !!activeMembership,
-      membershipStatus: customer.membershipStatus || 'None',
-      membershipDetails: activeMembership ? {
-        planName: (activeMembership.membershipPlanId as any)?.name || 'N/A',
-        status: activeMembership.status,
-        endDate: (activeMembership as any).endDate?.toISOString(),
-        discountPercent: (activeMembership.membershipPlanId as any)?.discountPercentageServices || 0
-      } : null,
-
-      // Last visit information
-      lastVisit: allRecentAppointments.length > 0 ? 
-        (allRecentAppointments[0] as any).date.toISOString() : null,
-
-      // Appointment history
       appointmentHistory: populatedHistory.map(apt => ({
         _id: (apt as any)._id.toString(),
         id: (apt as any)._id.toString(),
         date: (apt as any).date.toISOString(),
         totalAmount: (apt as any).amount || 0,
         stylistName: (apt as any).stylistId?.name || 'N/A',
-        services: Array.isArray((apt as any).serviceIds) ? 
-          (apt as any).serviceIds.map((s: any) => s.name) : [],
+        services: Array.isArray((apt as any).serviceIds) ? (apt as any).serviceIds.map((s: any) => s.name) : [],
       }))
     };
 
@@ -152,10 +98,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
   } catch (error: any) {
     console.error(`API Error fetching details for customer ${params.id}:`, error);
-    return NextResponse.json({ 
-      success: false, 
-      message: error.message || 'An internal server error occurred.' 
-    }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'An internal server error occurred.' }, { status: 500 });
   }
 }
 
@@ -185,7 +128,6 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       {
         name: body.name.trim(),
         email: body.email?.trim(),
-         gender: body.gender || 'other',
         phoneNumber: body.phoneNumber.trim(),
       },
       { new: true, runValidators: true }

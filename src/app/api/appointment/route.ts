@@ -10,7 +10,6 @@ import mongoose from 'mongoose';
 export async function GET(req: Request) {
   try {
     await connectToDatabase();
-
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
@@ -71,7 +70,6 @@ export async function GET(req: Request) {
         { 'customerInfo.phoneNumber': searchRegex }
       ];
     }
-
     if (Object.keys(matchStage).length > 0) {
       pipeline.push({ $match: matchStage });
     }
@@ -185,7 +183,6 @@ export async function POST(req: Request) {
     // Calculate totals using model method
     const newAppointment = new Appointment(appointmentData);
     const { grandTotal, membershipSavings } = await newAppointment.calculateTotal();
-
     appointmentData.finalAmount = grandTotal;
     appointmentData.membershipDiscount = membershipSavings;
 

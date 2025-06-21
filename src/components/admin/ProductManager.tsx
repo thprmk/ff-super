@@ -106,7 +106,6 @@ export default function ProductManager() {
     if (entityType === 'product') return 'products';
     return '';
   };
-
   const handleSave = async (entityType: EntityType, data: any) => {
     const isEditing = !!entityToEdit;
     const id = isEditing ? entityToEdit._id : '';
@@ -132,7 +131,6 @@ export default function ProductManager() {
     if (!apiPath) return;
 
     const url = isEditing ? `/api/${apiPath}/${id}` : `/api/${apiPath}`;
-
     try {
       const res = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
@@ -159,7 +157,6 @@ export default function ProductManager() {
   const handleDelete = async (entityType: EntityType, id: string) => {
     const apiPath = getApiPath(entityType);
     if (!apiPath) return;
-
     if (confirm(`Are you sure you want to delete this ${entityType}?`)) {
       try {
         const res = await fetch(`/api/${apiPath}/${id}`, { method: 'DELETE' });
@@ -193,7 +190,6 @@ export default function ProductManager() {
           brandName: selectedBrand?.name,
         }}
       />
-
       <div className="p-4 border-b border-gray-200">
         <div className="flex space-x-2 rounded-md bg-gray-100 p-1 w-min">
           {(['Retail', 'In-House'] as ProductType[]).map((type) => (
@@ -203,7 +199,6 @@ export default function ProductManager() {
           ))}
         </div>
       </div>
-
       <div className="flex flex-col md:flex-row h-[calc(100vh-250px)] bg-gray-50 overflow-hidden">
         <CategoryColumn title="Brands" items={brands} selectedId={selectedBrand?._id || null}
           onSelect={(id) => { const brand = brands.find(b => b._id === id); if (brand) handleSelectBrand(brand); }}

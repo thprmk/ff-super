@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Customer, { ICustomer } from '@/models/customermodel';
+import mongoose from 'mongoose';
 
 export async function POST(
   req: Request,
@@ -12,16 +13,13 @@ export async function POST(
     
     const { isMembership, membershipBarcode } = await req.json();
     const customerId = params.id;
+
+    console.log(`Toggling membership for customer ID: ${customerId}, isMembership: ${isMembership}, membershipBarcode: ${membershipBarcode}`);
     
-    // Validate barcode if provided
-    if (isMembership && membershipBarcode) {
-      const barcodeExists = await Customer.checkBarcodeExists(membershipBarcode);
-      if (barcodeExists) {
-        return NextResponse.json({
-          success: false,
-          message: 'This barcode is already in use'
-        }, { status: 400 });
-      }
+
+    
+    if (!mongoose.Types.ObjectId.isValid(customerId)) {
+      return NextResponse.json({ success: false, message: 'Invalid Customer ID' }, { status: 400 });
     }
     
     const customer: ICustomer | null = await Customer.findById(customerId);

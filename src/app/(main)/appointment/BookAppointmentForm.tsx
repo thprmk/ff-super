@@ -270,7 +270,6 @@ const CustomerDetailPanel: React.FC<CustomerDetailPanelProps> = ({
       try {
         const res = await fetch(`/api/customer/check-barcode?barcode=${encodeURIComponent(membershipBarcode.trim())}`);
         const data = await res.json();
-
         if (data.success) {
           setIsBarcodeValid(!data.exists);
           if (data.exists) {
@@ -499,7 +498,6 @@ const CustomerDetailPanel: React.FC<CustomerDetailPanelProps> = ({
                   />
                   <QrCodeIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 </div>
-
                 {/* Validation Messages */}
                 {isCheckingBarcode && (
                   <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
@@ -516,12 +514,10 @@ const CustomerDetailPanel: React.FC<CustomerDetailPanelProps> = ({
                     Barcode is available
                   </p>
                 )}
-
                 <p className="text-xs text-gray-500 mt-1">
                   3-20 characters, letters and numbers only
                 </p>
               </div>
-
               <div className="flex gap-2">
                 <button
                   onClick={handleGrantMembership}
@@ -639,7 +635,6 @@ const CustomerDetailPanel: React.FC<CustomerDetailPanelProps> = ({
     </div>
   );
 };
-
 
 // ===================================================================================
 //  MAIN BOOKING FORM COMPONENT
@@ -805,7 +800,6 @@ const initialFormData: NewBookingData = {
   // Customer search by phone
   useEffect(() => {
     if (searchMode !== 'phone') return;
-
     const query = formData.phoneNumber.trim();
     if (isCustomerSelected || query.length < 3) {
       setCustomerSearchResults([]);
@@ -962,6 +956,9 @@ const handleSelectCustomer = (customer: CustomerSearchResult) => {
 
   const handleToggleMembership = async (customBarcode?: string) => {
     if (!selectedCustomerDetails) return;
+
+    console.log(`Toggling membership for ${selectedCustomerDetails} (${selectedCustomerDetails.phoneNumber})`);
+    
 
     try {
       const response = await fetch(`/api/customer/${selectedCustomerDetails._id}/toggle-membership`, {

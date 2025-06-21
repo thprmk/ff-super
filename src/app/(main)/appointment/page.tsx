@@ -44,10 +44,18 @@ interface AppointmentWithCustomer {
   notes?: string;
   status: 'Appointment' | 'Checked-In' | 'Checked-Out' | 'Paid' | 'Cancelled' | 'No-Show';
   appointmentType: 'Online' | 'Offline';
-  serviceIds?: Array<{ _id: string; name: string; price: number; membershipRate?: number }>;
+  // FIX: Added the 'duration' property to match the type expected by EditAppointmentForm.
+  serviceIds?: Array<{ _id: string; name: string; price: number; membershipRate?: number; duration: number; }>;
   amount?: number;
   estimatedDuration?: number;
   actualDuration?: number;
+  
+  // FIX: Added missing properties to match usage in the component
+  appointmentTime?: string;
+  billingStaff?: StylistFromAPI;
+  paymentDetails?: Record<string, number>;
+  finalAmount?: number;
+  membershipDiscount?: number;
 }
 
 // --- Helper Functions ---
@@ -200,7 +208,6 @@ export default function AppointmentPage() {
 
       console.log('Appointment updated:', result.appointment);
 
-
       // If status changed to Checked-Out, open billing modal
       if (updateData.status === 'Checked-Out') {
         setSelectedAppointmentForBilling(result.appointment);
@@ -329,7 +336,7 @@ export default function AppointmentPage() {
                   <th className="px-6 py-3">Date & Time</th>
                   <th className="px-6 py-3">Appointment Time</th>
                   <th className="px-6 py-3">Type</th>
-                  <th className="px-6 py-3">Status</th>
+                  <th className="px-2 py-3">Status</th>
                   <th className="px-6 py-3">Amount</th> {/* NEW COLUMN */}
                   <th className="px-6 py-3">Staff</th> {/* NEW COLUMN */}
 

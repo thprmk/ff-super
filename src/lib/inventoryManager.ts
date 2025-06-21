@@ -37,7 +37,7 @@ export class InventoryManager {
 
       // Get the appropriate quantity based on gender
       let quantityToUse = consumable.quantity.default;
-      
+
       if (customerGender === 'male' && consumable.quantity.male !== undefined) {
         quantityToUse = consumable.quantity.male;
       } else if (customerGender === 'female' && consumable.quantity.female !== undefined) {
@@ -82,7 +82,7 @@ export class InventoryManager {
 
         // Deduct from total quantity
         product.totalQuantity -= update.quantityToDeduct;
-        
+
         // Recalculate number of items if needed
         if (product.quantityPerItem > 0) {
           product.numberOfItems = Math.floor(product.totalQuantity / product.quantityPerItem);
@@ -124,7 +124,7 @@ export class InventoryManager {
     // Calculate total usage across all services
     for (const serviceId of serviceIds) {
       const updates = await this.calculateServiceInventoryUsage(serviceId, customerGender);
-      
+
       for (const update of updates) {
         const existingUpdate = consolidatedUpdates.get(update.productId);
         if (existingUpdate) {
@@ -137,7 +137,7 @@ export class InventoryManager {
 
     // Calculate impact for each product
     const impactSummary: InventoryImpact[] = [];
-    
+
     for (const [productId, update] of consolidatedUpdates) {
       const product = await Product.findById(productId);
       if (!product) continue;
