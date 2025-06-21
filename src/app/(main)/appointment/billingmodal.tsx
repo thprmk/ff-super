@@ -201,6 +201,9 @@ const BillingModal: React.FC<BillingModalProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+const [inventoryImpact, setInventoryImpact] = useState<any>(null);
+const [isLoadingInventory, setIsLoadingInventory] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<SearchableItem[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -236,6 +239,37 @@ const BillingModal: React.FC<BillingModalProps> = ({
       fetchStaffMembers();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+  if (billItems.length > 0 && appointment.serviceIds) {
+    fetchInventoryImpact();
+  }
+}, [billItems, appointment.serviceIds, customer._id]);
+
+const fetchInventoryImpact = async () => {
+  setIsLoadingInventory(true);
+  try {
+    const serviceIds = appointment.serviceIds?.map(s => s._id) || [];
+    const response = await fetch('/api/billing/inventory-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        serviceIds,
+        customerId: customer._id
+      })
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      setInventoryImpact(data.data);
+    }
+  } catch (error) {
+    console.error('Failed to fetch inventory impact:', error);
+  } finally {
+    setIsLoadingInventory(false);
+  }
+};
+
 
   const fetchStaffMembers = async () => {
     setIsLoadingStaff(true);
@@ -738,6 +772,52 @@ const BillingModal: React.FC<BillingModalProps> = ({
                 </div>
               )}
             </div>
+
+{inventoryImpact && inventoryImpact.inventoryImpact.length > 0 && (
+  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+    <h4 className="text-sm font-medium text-blue-800 mb-3 flex items-center gap-2">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+      Inventory Impact ({inventoryImpact.customerGender === 'other' ? 'Default' : inventoryImpact.customerGender.charAt(0).toUpperCase() + inventoryImpact.customerGender.slice(1)} quantities)
+    </h4>
+    
+    <div className="space-y-2">
+      {inventoryImpact.inventoryImpact.map((impact: any, index: number) => (
+        <div key={index} className={`p-3 rounded-md border ${
+          impact.alertLevel === 'insufficient' ? 'bg-red-50 border-red-200' :
+          impact.alertLevel === 'critical' ? 'bg-orange-50 border-orange-200' :
+          impact.alertLevel === 'low' ? 'bg-yellow-50 border-yellow-200' :
+          'bg-green-50 border-green-200'
+        }`}>
+          <div className="flex justify-between items-center">
+            <div>
+              <span className="font-medium text-sm">{impact.productName}</span>
+              <div className="text-xs text-gray-600">
+                Current: {impact.currentQuantity.toFixed(1)}{impact.unit} → 
+                After service: {impact.remainingAfterUsage.toFixed(1)}{impact.unit}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-medium">-{impact.usageQuantity.toFixed(1)}{impact.unit}</div>
+              {impact.alertLevel !== 'ok' && (
+                <div className={`text-xs font-medium ${
+                  impact.alertLevel === 'insufficient' ? 'text-red-600' :
+                  impact.alertLevel === 'critical' ? 'text-orange-600' :
+                  'text-yellow-600'
+                }`}>
+                  {impact.alertLevel === 'insufficient' ? 'Insufficient Stock!' :
+                   impact.alertLevel === 'critical' ? 'Critical Level' :
+                   'Low Stock'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
             {/* Search for Additional Items */}
             <div className="border-t pt-4">

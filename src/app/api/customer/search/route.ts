@@ -75,6 +75,7 @@ export async function GET(req: Request) {
           planName: 'Member',
           status: 'Active'
         } : null,
+         gender: customer.gender || 'other',
         loyaltyPoints: calculatedLoyaltyPoints,
         lastVisit: appointmentHistory.length > 0 ? (appointmentHistory[0] as any).date : null,
         totalSpent: totalSpent, // Add total spent field

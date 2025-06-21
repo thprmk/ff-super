@@ -2,7 +2,7 @@
 const bcrypt = require('bcryptjs');
 const { MongoClient } = require('mongodb');
 
-const MONGODB_URI = 'mongodb+srv://techvaseegrah:PsItPZ7RsN4Ajvu1@ff-hari.4hu1pnl.mongodb.net/?retryWrites=true&w=majority&appName=ff-hari';
+const MONGODB_URI = 'mongodb+srv://harisrini777:3iANzOOzDLZSPmSK@saloon-freshface.ipibhgf.mongodb.net/?retryWrites=true&w=majority&appName=Saloon-FreshFace';
 const SUPER_ADMIN_EMAIL = 'superadmin@freshface.com';
 const SUPER_ADMIN_PASSWORD = 'SuperAdmin123!';
 const SUPER_ADMIN_NAME = 'Super Administrator';

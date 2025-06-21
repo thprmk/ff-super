@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 export async function GET(req: Request) {
   try {
     await connectToDatabase();
-    
+
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
@@ -54,15 +54,15 @@ export async function GET(req: Request) {
 
     // Build match conditions
     const matchStage: any = {};
-    
+
     if (statusFilter && statusFilter !== 'All') {
       matchStage.status = statusFilter;
     }
-    
+
     if (appointmentType && appointmentType !== 'All') {
       matchStage.appointmentType = appointmentType;
     }
-    
+
     if (searchQuery) {
       const searchRegex = new RegExp(searchQuery, 'i');
       matchStage.$or = [
@@ -71,7 +71,7 @@ export async function GET(req: Request) {
         { 'customerInfo.phoneNumber': searchRegex }
       ];
     }
-    
+
     if (Object.keys(matchStage).length > 0) {
       pipeline.push({ $match: matchStage });
     }
@@ -83,10 +83,10 @@ export async function GET(req: Request) {
         .limit(limit),
       Appointment.aggregate([...pipeline, { $count: 'total' }])
     ]);
-    
+
     const totalAppointments = totalAppointmentsResult.length > 0 ? totalAppointmentsResult[0].total : 0;
     const totalPages = Math.ceil(totalAppointments / limit);
-    
+
     const appointments = await Appointment.populate(results, {
       path: 'serviceIds',
       model: ServiceItem,
@@ -104,7 +104,6 @@ export async function GET(req: Request) {
       paymentDetails: apt.paymentDetails // Include payment splitting details
     }));
 
-    console.log("API Response - Appointments:", { formattedAppointments });
 
     return NextResponse.json({
       success: true,
@@ -114,9 +113,9 @@ export async function GET(req: Request) {
 
   } catch (error: any) {
     console.error("API Error fetching appointments:", error);
-    return NextResponse.json({ 
-      success: false, 
-      message: "Failed to fetch appointments." 
+    return NextResponse.json({
+      success: false,
+      message: "Failed to fetch appointments."
     }, { status: 500 });
   }
 }
@@ -126,39 +125,45 @@ export async function POST(req: Request) {
     await connectToDatabase();
     const body = await req.json();
 
-    const { 
-      phoneNumber, 
-      customerName, 
-      email, 
-      serviceIds, 
-      stylistId, 
-      date, 
-      time, 
-      notes, 
+    const {
+      phoneNumber,
+      customerName,
+      email,
+      serviceIds,
+      stylistId,
+      date,
+      time,
+      notes,
       status,
+      gender,
       appointmentType = 'Online'
     } = body;
 
     if (!phoneNumber || !customerName || !serviceIds || serviceIds.length === 0 || !stylistId || !date || !time || !status) {
-      return NextResponse.json({ 
-        success: false, 
-        message: "Missing required fields." 
+      return NextResponse.json({
+        success: false,
+        message: "Missing required fields."
       }, { status: 400 });
     }
+
+    
 
     // Find or create customer
     let customerDoc = await Customer.findOne({ phoneNumber: phoneNumber.trim() });
     if (!customerDoc) {
-      customerDoc = await Customer.create({ 
-        name: customerName, 
-        phoneNumber: phoneNumber.trim(), 
-        email 
+      customerDoc = await Customer.create({
+        name: customerName,
+        phoneNumber: phoneNumber.trim(),
+        email,
+        gender: gender || 'other'
       });
+
+      
     }
 
     // Calculate duration and totals
-    const services = await ServiceItem.find({ 
-      _id: { $in: serviceIds } 
+    const services = await ServiceItem.find({
+      _id: { $in: serviceIds }
     }).select('duration price membershipRate');
 
     const estimatedDuration = services.reduce((total, service) => total + service.duration, 0);
@@ -180,7 +185,7 @@ export async function POST(req: Request) {
     // Calculate totals using model method
     const newAppointment = new Appointment(appointmentData);
     const { grandTotal, membershipSavings } = await newAppointment.calculateTotal();
-    
+
     appointmentData.finalAmount = grandTotal;
     appointmentData.membershipDiscount = membershipSavings;
 
@@ -195,16 +200,16 @@ export async function POST(req: Request) {
       .populate({ path: 'stylistId', select: 'name' })
       .populate({ path: 'serviceIds', select: 'name price duration membershipRate' });
 
-    return NextResponse.json({ 
-      success: true, 
-      appointment: populatedAppointment 
+    return NextResponse.json({
+      success: true,
+      appointment: populatedAppointment
     }, { status: 201 });
 
   } catch (err: any) {
     console.error("API Error creating appointment:", err);
-    return NextResponse.json({ 
-      success: false, 
-      message: err.message || "Failed to create appointment." 
+    return NextResponse.json({
+      success: false,
+      message: err.message || "Failed to create appointment."
     }, { status: 500 });
   }
 }

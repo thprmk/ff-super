@@ -16,14 +16,14 @@ export default function ProductManager() {
   const [brands, setBrands] = useState<IProductBrand[]>([]);
   const [subCategories, setSubCategories] = useState<IProductSubCategory[]>([]);
   const [products, setProducts] = useState<IProduct[]>([]);
-  
+
   const [selectedBrand, setSelectedBrand] = useState<IProductBrand | null>(null);
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string | null>(null);
-  
+
   const [isLoadingBrands, setIsLoadingBrands] = useState(true);
   const [isLoadingSubCategories, setIsLoadingSubCategories] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalEntityType, setModalEntityType] = useState<EntityType | null>(null);
   const [entityToEdit, setEntityToEdit] = useState<any | null>(null);
@@ -46,9 +46,9 @@ export default function ProductManager() {
     const res = await fetch(`/api/product-brands?type=${type}`);
     const data = await res.json();
     if (data.success) {
-        setBrands(data.data);
+      setBrands(data.data);
     } else {
-        setBrands([]);
+      setBrands([]);
     }
     setIsLoadingBrands(false);
   }, []);
@@ -64,9 +64,9 @@ export default function ProductManager() {
     const res = await fetch(`/api/product-sub-categories?brandId=${brandId}`);
     const data = await res.json();
     if (data.success) {
-        setSubCategories(data.data);
+      setSubCategories(data.data);
     } else {
-        setSubCategories([]);
+      setSubCategories([]);
     }
     setIsLoadingSubCategories(false);
   }, []);
@@ -77,9 +77,9 @@ export default function ProductManager() {
     const res = await fetch(`/api/products?subCategoryId=${subCategoryId}`);
     const data = await res.json();
     if (data.success) {
-        setProducts(data.data);
+      setProducts(data.data);
     } else {
-        setProducts([]);
+      setProducts([]);
     }
     setIsLoadingProducts(false);
   }, []);
@@ -106,33 +106,33 @@ export default function ProductManager() {
     if (entityType === 'product') return 'products';
     return '';
   };
-  
+
   const handleSave = async (entityType: EntityType, data: any) => {
     const isEditing = !!entityToEdit;
     const id = isEditing ? entityToEdit._id : '';
     let payload = { ...data };
 
     if (!isEditing) {
-        payload.type = productType;
-        if (entityType === 'subcategory') {
-            payload.brand = selectedBrand?._id;
-        }
-        if (entityType === 'product') {
-            payload.brand = selectedBrand?._id;
-            payload.subCategory = selectedSubCategoryId;
-        }
+      payload.type = productType;
+      if (entityType === 'subcategory') {
+        payload.brand = selectedBrand?._id;
+      }
+      if (entityType === 'product') {
+        payload.brand = selectedBrand?._id;
+        payload.subCategory = selectedSubCategoryId;
+      }
     } else {
-        if (entityType === 'product') {
-            payload.brand = payload.brand._id || payload.brand;
-            payload.subCategory = payload.subCategory._id || payload.subCategory;
-        }
+      if (entityType === 'product') {
+        payload.brand = payload.brand._id || payload.brand;
+        payload.subCategory = payload.subCategory._id || payload.subCategory;
+      }
     }
-    
+
     const apiPath = getApiPath(entityType);
     if (!apiPath) return;
 
     const url = isEditing ? `/api/${apiPath}/${id}` : `/api/${apiPath}`;
-    
+
     try {
       const res = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
@@ -159,7 +159,7 @@ export default function ProductManager() {
   const handleDelete = async (entityType: EntityType, id: string) => {
     const apiPath = getApiPath(entityType);
     if (!apiPath) return;
-    
+
     if (confirm(`Are you sure you want to delete this ${entityType}?`)) {
       try {
         const res = await fetch(`/api/${apiPath}/${id}`, { method: 'DELETE' });
@@ -168,10 +168,10 @@ export default function ProductManager() {
           if (entityType === 'subcategory' && selectedBrand) { setSelectedSubCategoryId(null); setProducts([]); fetchSubCategories(selectedBrand._id); }
           if (entityType === 'product' && selectedSubCategoryId) fetchProducts(selectedSubCategoryId);
         } else {
-            const errorData = await res.json();
-            alert(`Failed to delete: ${errorData.error}`);
+          const errorData = await res.json();
+          alert(`Failed to delete: ${errorData.error}`);
         }
-      } catch(error) {
+      } catch (error) {
         console.error('Delete operation failed:', error);
         alert('An error occurred. Check the console for details.');
       }
@@ -193,7 +193,7 @@ export default function ProductManager() {
           brandName: selectedBrand?.name,
         }}
       />
-      
+
       <div className="p-4 border-b border-gray-200">
         <div className="flex space-x-2 rounded-md bg-gray-100 p-1 w-min">
           {(['Retail', 'In-House'] as ProductType[]).map((type) => (
@@ -203,7 +203,7 @@ export default function ProductManager() {
           ))}
         </div>
       </div>
-      
+
       <div className="flex flex-col md:flex-row h-[calc(100vh-250px)] bg-gray-50 overflow-hidden">
         <CategoryColumn title="Brands" items={brands} selectedId={selectedBrand?._id || null}
           onSelect={(id) => { const brand = brands.find(b => b._id === id); if (brand) handleSelectBrand(brand); }}
@@ -219,43 +219,53 @@ export default function ProductManager() {
           onAddNew={() => handleOpenModal('subcategory')}
           isLoading={isLoadingSubCategories} disabled={!selectedBrand}
         />
-        
+
         <div className="flex flex-col w-full md:w-1/3 bg-white">
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-             <h3 className="font-semibold text-lg text-gray-800">Products</h3>
-             <button onClick={() => handleOpenModal('product')} disabled={!selectedSubCategoryId} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-black rounded-md disabled:bg-gray-300">
-                <PlusIcon className="h-4 w-4" /> Add Product
-              </button>
+            <h3 className="font-semibold text-lg text-gray-800">Products</h3>
+            <button onClick={() => handleOpenModal('product')} disabled={!selectedSubCategoryId} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-black rounded-md disabled:bg-gray-300">
+              <PlusIcon className="h-4 w-4" /> Add Product
+            </button>
           </div>
-          <div className="flex-grow overflow-y-auto">
-            {isLoadingProducts && <div className="p-4 text-center text-gray-500">Loading...</div>}
-            {products.map(product => (
-              <div key={product._id} className="group p-4 border-b hover:bg-gray-50">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-gray-800">{product.name}</p>
-                    <p className="text-xs text-gray-500 font-mono mt-1">SKU: {product.sku}</p>
-                    <p className="text-xs text-gray-500 mt-1">{product.quantity} {product.unit}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-    Expires: {product.expiryDate ? new Date(product.expiryDate).toLocaleDateString() : <span className="text-gray-400">N/A</span>}
-  </p>
-                  </div>
-                  <div className="text-right ml-4">
-                    <p className="text-lg font-semibold text-gray-900">₹{product.price.toFixed(2)}</p>
-                    <div className="flex justify-end gap-1 mt-1 opacity-0 group-hover:opacity-100">
-                       <button onClick={() => handleOpenModal('product', product)} className="p-1.5 rounded hover:bg-gray-200"><PencilIcon className="h-5 w-5" /></button>
-                       <button onClick={() => handleDelete('product', product._id)} className="p-1.5 rounded text-red-500 hover:bg-red-100"><TrashIcon className="h-5 w-5" /></button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {!isLoadingProducts && products.length === 0 && (
-                <div className="p-8 text-center text-sm text-gray-400">
-                    {selectedSubCategoryId ? 'No products found.' : 'Select a sub-category.'}
-                </div>
-            )}
+
+<div className="flex-grow overflow-y-auto">
+  {isLoadingProducts && <div className="p-4 text-center text-gray-500">Loading...</div>}
+  {products.map(product => (
+    <div key={product._id} className="group p-4 border-b hover:bg-gray-50">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="font-semibold text-gray-800">{product.name}</p>
+          <p className="text-xs text-gray-500 font-mono mt-1">SKU: {product.sku}</p>
+          <p className="text-sm text-gray-600 mt-1">
+            <span className="font-medium">{product.numberOfItems} items</span> × {product.quantityPerItem}{product.unit} each
+          </p>
+          <p className="text-sm text-blue-600 font-medium mt-1">
+            Total Stock: {product.totalQuantity}{product.unit}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Expires: {product.expiryDate ? new Date(product.expiryDate).toLocaleDateString() : <span className="text-gray-400">N/A</span>}
+          </p>
+        </div>
+        <div className="text-right ml-4">
+          <p className="text-lg font-semibold text-gray-900">₹{product.price.toFixed(2)}</p>
+          <div className="flex justify-end gap-1 mt-1 opacity-0 group-hover:opacity-100">
+            <button onClick={() => handleOpenModal('product', product)} className="p-1.5 rounded hover:bg-gray-200">
+              <PencilIcon className="h-5 w-5" />
+            </button>
+            <button onClick={() => handleDelete('product', product._id)} className="p-1.5 rounded text-red-500 hover:bg-red-100">
+              <TrashIcon className="h-5 w-5" />
+            </button>
           </div>
+        </div>
+      </div>
+    </div>
+  ))}
+  {!isLoadingProducts && products.length === 0 && (
+    <div className="p-8 text-center text-sm text-gray-400">
+      {selectedSubCategoryId ? 'No products found.' : 'Select a sub-category.'}
+    </div>
+  )}
+</div>
         </div>
       </div>
     </div>

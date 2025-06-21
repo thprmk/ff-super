@@ -135,10 +135,13 @@ export async function POST(req: Request) {
     }
 
     // New customers are active by default because of the schema setting `isActive: true`
+  // New customers are active by default because of the schema setting `isActive: true`
     const newCustomer = await Customer.create({
         ...body,
         phoneNumber: normalizedPhoneNumber,
+        gender: body.gender || 'other', // ADD THIS LINE
     });
+
 
     return NextResponse.json({ success: true, customer: newCustomer }, { status: 201 });
   } catch (error: any) {

@@ -1,15 +1,16 @@
-// app/api/billing/route.ts
+// app/api/billing/route.ts (Updated to include inventory management)
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Appointment from '@/models/Appointment';
-import Invoice from '@/models/invoice'; // Fixed typo in import (invoice -> Invoice)
+import Invoice from '@/models/invoice';
 import Stylist from '@/models/Stylist';
+import Customer from '@/models/customermodel';
+import { InventoryManager } from '@/lib/inventoryManager';
 
 export async function POST(req: Request) {
   try {
     await connectToDatabase();
 
-    // Read request body once
     const body = await req.json();
     const {
       appointmentId,
@@ -28,11 +29,7 @@ export async function POST(req: Request) {
       membershipGrantedDuringBilling,
     } = body;
 
-    console.log('Received billing request:', body);
-
     console.log('Processing billing for appointment:', appointmentId);
-    console.log('Grand total:', grandTotal);
-    console.log('Payment details:', paymentDetails);
 
     // Validate paymentDetails
     if (!paymentDetails || typeof paymentDetails !== 'object' || Object.keys(paymentDetails).length === 0) {
@@ -53,6 +50,62 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    // Get appointment and customer details for inventory calculation
+    const appointment = await Appointment.findById(appointmentId).populate('serviceIds customerId');
+    if (!appointment) {
+      return NextResponse.json(
+        { success: false, message: 'Appointment not found' },
+        { status: 404 }
+      );
+    }
+
+    
+
+    const customer = await Customer.findById(customerId);
+    const customerGender = customer?.gender || 'other';
+
+    // Calculate and apply inventory updates for services
+    try {
+  console.log('Starting inventory updates...');
+  
+  const serviceIds = appointment.serviceIds.map((s: any) => s._id.toString());
+  console.log('Service IDs for inventory:', serviceIds);
+  console.log('Customer gender:', customerGender);
+
+  // Calculate inventory updates for ALL services
+  const allInventoryUpdates: any[] = [];
+  for (const serviceId of serviceIds) {
+    const serviceUpdates = await InventoryManager.calculateServiceInventoryUsage(
+      serviceId,
+      customerGender
+    );
+    allInventoryUpdates.push(...serviceUpdates);
+  }
+
+  console.log('Calculated inventory updates:', allInventoryUpdates);
+
+  if (allInventoryUpdates.length > 0) {
+    // Apply inventory updates
+    const inventoryResult = await InventoryManager.applyInventoryUpdates(allInventoryUpdates);
+    
+    if (!inventoryResult.success) {
+      console.warn('Inventory update warnings:', inventoryResult.errors);
+      // You might want to decide whether to proceed or halt billing here
+    }
+
+    console.log('Inventory updates applied successfully');
+    if (inventoryResult.restockAlerts.length > 0) {
+      console.log('Products needing restock:', inventoryResult.restockAlerts);
+    }
+  } else {
+    console.log('No inventory updates needed - no consumables found');
+  }
+
+} catch (inventoryError) {
+  console.error('Inventory update failed:', inventoryError);
+  // Continue with billing but log the error
+}
 
     // Create invoice
     const invoice = await Invoice.create({

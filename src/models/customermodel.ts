@@ -12,7 +12,8 @@ export interface ICustomer extends Document {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  
+  gender?: 'male' | 'female' | 'other'; // Add this
+
   getServicePricing(serviceIds: string[]): Promise<any[]>;
   toggleMembership(status?: boolean, customBarcode?: string): Promise<ICustomer>;
   generateMembershipBarcode(): string;
@@ -58,17 +59,16 @@ const customerSchema = new mongoose.Schema({
     index: true
   },
 
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other'],
+    required: false,
+    lowercase: true
+  },
+
 }, { timestamps: true });
 
-// Instance method to generate unique barcode when granting membership
-customerSchema.methods.generateMembershipBarcode = function(this: ICustomer): string {
-  if (!this.membershipBarcode) {
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    this.membershipBarcode = `SALON-${date}-${random}`;
-  }
-  return this.membershipBarcode;
-};
+
 
 // Updated method to toggle membership with custom barcode
 customerSchema.methods.toggleMembership = function(this: ICustomer, status = true, customBarcode?: string): Promise<ICustomer> {
@@ -77,9 +77,7 @@ customerSchema.methods.toggleMembership = function(this: ICustomer, status = tru
     this.membershipPurchaseDate = new Date();
     if (customBarcode) {
       this.membershipBarcode = customBarcode.trim().toUpperCase();
-    } else {
-      this.generateMembershipBarcode();
-    }
+    } 
   } else {
     this.membershipBarcode = undefined;
   }

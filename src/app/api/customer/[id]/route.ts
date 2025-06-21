@@ -16,6 +16,7 @@ interface LeanCustomer {
   name: string; 
   email?: string; 
   phoneNumber: string; 
+  gender?: string; // ADD THIS LINE
   membershipStatus?: string;
   currentMembershipId?: mongoose.Types.ObjectId;
 }
@@ -119,7 +120,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       phoneNumber: customer.phoneNumber,
       status: activityStatus,
       loyaltyPoints: calculatedLoyaltyPoints,
-      
+            gender: customer.gender || 'other', // ADD THIS LINE
+
       // Membership information
       isMember: !!activeMembership,
       membershipStatus: customer.membershipStatus || 'None',
@@ -183,6 +185,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       {
         name: body.name.trim(),
         email: body.email?.trim(),
+         gender: body.gender || 'other',
         phoneNumber: body.phoneNumber.trim(),
       },
       { new: true, runValidators: true }
