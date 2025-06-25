@@ -1,3 +1,4 @@
+// app/api/customer/[id]
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Customer from '@/models/customermodel';
@@ -11,12 +12,12 @@ import { authOptions } from '@/lib/auth';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 // This interface should reflect the actual fields in your Customer model
-interface LeanCustomer { 
-  _id: mongoose.Types.ObjectId; 
-  createdAt?: Date; 
-  name: string; 
-  email?: string; 
-  phoneNumber: string; 
+interface LeanCustomer {
+  _id: mongoose.Types.ObjectId;
+  createdAt?: Date;
+  name: string;
+  email?: string;
+  phoneNumber: string;
   isActive: boolean; // Add this field
   isMembership: boolean; // This is the key field for your simple system
 }
@@ -39,14 +40,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   try {
     await connectToDatabase();
     
-    // Fetch the core customer data, including the simple `isMembership` field
-    const customer = await Customer.findById(customerId).lean<LeanCustomer>();
+    // Fetch the core customer data. Removed .lean() to allow post-find hooks to run for decryption.
+    const customer = await Customer.findById(customerId);
     if (!customer) {
       return NextResponse.json({ success: false, message: 'Customer not found.' }, { status: 404 });
     }
 
     // Fetch related data in parallel.
-    // NOTE: We no longer need to query the complex CustomerMembership collection.
     const [allRecentAppointments, loyaltyData] = await Promise.all([
       Appointment.find({ customerId: customer._id }).sort({ date: -1 }).limit(20).lean(),
       LoyaltyTransaction.aggregate([
@@ -76,7 +76,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       .populate({ path: 'serviceIds', model: ServiceItem, select: 'name price' })
       .lean();
 
-    // --- CONSTRUCT THE FINAL, CORRECT OBJECT ---
+    // Construct the final object with decrypted customer data
     const customerDetails = {
       id: customer._id.toString(),
       name: customer.name,
@@ -84,15 +84,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       phoneNumber: customer.phoneNumber,
       status: activityStatus,
       loyaltyPoints: calculatedLoyaltyPoints,
-      
-      // --- THE CRITICAL FIX ---
-      // We now use the simple `isMembership` boolean from the Customer model
-      // as the single source of truth for the `currentMembership` property
-      // that the front-end panel component uses.
       currentMembership: customer.isMembership,
-      
       createdAt: customer.createdAt || customer._id.getTimestamp(),
-
       appointmentHistory: populatedHistory.map(apt => ({
         _id: (apt as any)._id.toString(),
         id: (apt as any)._id.toString(),
@@ -112,7 +105,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 // ===================================================================================
-//  PUT: Handler for UPDATING a customer
+//  PUT: Handler for UPDATING a customer (FIXED)
 // ===================================================================================
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const customerId = params.id;
@@ -120,7 +113,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({ success: false, message: 'Invalid Customer ID.' }, { status: 400 });
   }
 
-    const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions);
   if (!session || !hasPermission(session.user.role.permissions, PERMISSIONS.CUSTOMERS_UPDATE)) {
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
   }
@@ -129,42 +122,31 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     await connectToDatabase();
     const body = await req.json();
 
-    // Validate required fields
     if (!body.name || !body.phoneNumber) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Name and phone number are required.' 
-      }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Name and phone number are required.' }, { status: 400 });
     }
 
-    const updatedCustomer = await Customer.findByIdAndUpdate(
-      customerId,
-      {
-        name: body.name.trim(),
-        email: body.email?.trim(),
-        phoneNumber: body.phoneNumber.trim(),
-      },
-      { new: true, runValidators: true }
-    );
+    // Use findById and save() to ensure pre-save hooks for encryption are triggered
+    const customer = await Customer.findById(customerId);
 
-    if (!updatedCustomer) {
+    if (!customer) {
       return NextResponse.json({ success: false, message: 'Customer not found.' }, { status: 404 });
     }
+
+    customer.name = body.name.trim();
+    customer.email = body.email?.trim();
+    customer.phoneNumber = body.phoneNumber.trim();
+
+    const updatedCustomer = await customer.save();
 
     return NextResponse.json({ success: true, customer: updatedCustomer });
 
   } catch (error: any) {
     if (error.code === 11000) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Another customer with this phone number or email already exists.' 
-      }, { status: 409 });
+      return NextResponse.json({ success: false, message: 'Another customer with this phone number or email already exists.' }, { status: 409 });
     }
     console.error(`API Error updating customer ${customerId}:`, error);
-    return NextResponse.json({ 
-      success: false, 
-      message: error.message || 'Failed to update customer.' 
-    }, { status: 500 });
+    return NextResponse.json({ success: false, message: error.message || 'Failed to update customer.' }, { status: 500 });
   }
 }
 
@@ -185,7 +167,6 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   try {
     await connectToDatabase();
     
-    // Soft delete: set isActive to false instead of deleting
     const deactivatedCustomer = await Customer.findByIdAndUpdate(
       customerId,
       { isActive: false },
@@ -196,16 +177,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       return NextResponse.json({ success: false, message: 'Customer not found.' }, { status: 404 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Customer has been deactivated successfully.' 
-    });
+    return NextResponse.json({ success: true, message: 'Customer has been deactivated successfully.' });
 
   } catch (error: any) {
     console.error(`API Error deactivating customer ${customerId}:`, error);
-    return NextResponse.json({ 
-      success: false, 
-      message: error.message || 'Failed to deactivate customer.' 
-    }, { status: 500 });
+    return NextResponse.json({ success: false, message: error.message || 'Failed to deactivate customer.' }, { status: 500 });
   }
 }

@@ -27,9 +27,11 @@ export interface CrmCustomer {
   phoneNumber: string;
   createdAt?: string;
   status?: 'Active' | 'Inactive' | 'New';
+  gender?: 'male' | 'female' | 'other'; // Added gender
   appointmentHistory?: AppointmentHistoryItem[];
   currentMembership?: MembershipUIDetails | null;
   loyaltyPoints?: number;
+  membershipBarcode?: string; // Added membership barcode
 }
 
 export interface MembershipPlanFE {
@@ -44,6 +46,7 @@ export interface AddCustomerFormData {
   name: string;
   email: string;
   phoneNumber: string;
+  gender?: 'male' | 'female' | 'other'; // Added gender
 }
 
 // Pagination details from the API

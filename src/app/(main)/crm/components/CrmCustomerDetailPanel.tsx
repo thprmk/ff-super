@@ -1,31 +1,25 @@
-// FILE: /app/crm/components/CrmCustomerDetailPanel.tsx - (FINAL, SIMPLIFIED VERSION)
-
+// FILE: /app/crm/components/CrmCustomerDetailPanel.tsx
 'use client';
 
-import React from 'react'; // useState is no longer needed here
+import React from 'react';
 import { CrmCustomer } from '../types';
-import { XMarkIcon, SparklesIcon, TagIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, SparklesIcon, TagIcon, QrCodeIcon } from '@heroicons/react/24/outline';
 
 interface CrmCustomerDetailPanelProps {
   customer: CrmCustomer | null;
   isOpen: boolean;
-  isUpdating: boolean; // NEW: Receives the loading state as a prop from the parent hook.
+  isUpdating: boolean; 
   onClose: () => void;
-  /**
-   * RENAMED & SIMPLIFIED: This prop now just signals the user's intent to grant membership.
-   * The parent hook will handle the API call and all subsequent state updates.
-   */
   onGrantMembership: (customerId: string) => void;
 }
 
 const CrmCustomerDetailPanel: React.FC<CrmCustomerDetailPanelProps> = ({
   customer,
   isOpen,
-  isUpdating, // Use the prop for the button's loading state.
+  isUpdating,
   onClose,
   onGrantMembership,
 }) => {
-  // REMOVED: All internal logic like `handleGrantMembership` function and `isUpdating` state has been moved to the useCrm hook.
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
@@ -54,56 +48,60 @@ const CrmCustomerDetailPanel: React.FC<CrmCustomerDetailPanelProps> = ({
         <div className="flex justify-between items-start">
           <div>
             <h3 className="text-xl font-bold text-gray-900 leading-tight">{customer!.name}</h3>
-            <div className="mt-2">
-              {customer!.currentMembership ? (
-                <span className="px-2 py-0.5 inline-flex text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 items-center gap-1">
-                  <SparklesIcon className="w-3.5 h-3.5" />
-                  Member
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 inline-flex text-xs font-semibold rounded-full bg-gray-200 text-gray-700">
-                  Not a Member
-                </span>
-              )}
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-full ml-4 flex-shrink-0">
-            <XMarkIcon className="w-6 h-6" />
-          </button>
-        </div>
-      </div>
-
-      {/* Panel Body */}
-      <div className="flex-grow overflow-y-auto p-6 space-y-6">
-        {/* Quick Stats */}
-        <div className="space-y-3">
-            <div className="flex items-center gap-3 text-sm">
-                <span className="font-medium text-gray-600 w-24">Activity Status:</span>
+            <div className="mt-2 flex items-center gap-2">
+                {customer!.currentMembership ? (
+                    <span className="px-2 py-0.5 inline-flex text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 items-center gap-1">
+                        <SparklesIcon className="w-3.5 h-3.5" /> Member
+                    </span>
+                ) : (
+                    <span className="px-2 py-0.5 inline-flex text-xs font-semibold rounded-full bg-gray-200 text-gray-700">Not a Member</span>
+                )}
                 {customer!.status && (
                     <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${customer!.status === 'Active' ? 'bg-green-100 text-green-800' : customer!.status === 'Inactive' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
                         {customer!.status}
                     </span>
                 )}
             </div>
-            <div className="flex items-center gap-3 text-sm">
-                <span className="font-medium text-gray-600 w-24">Loyalty Points:</span>
-                <span className="font-bold text-lg text-indigo-600">{customer!.loyaltyPoints ?? 0}</span>
-            </div>
+          </div>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-full ml-4 flex-shrink-0"><XMarkIcon className="w-6 h-6" /></button>
+        </div>
+      </div>
+
+      {/* Panel Body */}
+      <div className="flex-grow overflow-y-auto p-6 space-y-6">
+        {/* Contact Info and Details */}
+        <div className="space-y-3 text-sm">
+            <p className="text-gray-800"><strong>Phone:</strong> <a href={`tel:${customer!.phoneNumber}`} className="text-indigo-600 hover:text-indigo-800">{customer!.phoneNumber}</a></p>
+            <p className="text-gray-800"><strong>Email:</strong> <a href={`mailto:${customer!.email}`} className="text-indigo-600 hover:text-indigo-800 break-all">{customer!.email}</a></p>
+            <p className="text-gray-800 capitalize"><strong>Gender:</strong> <span className="text-gray-600">{customer!.gender}</span></p>
+            <p className="text-gray-800"><strong>Joined:</strong> <span className="text-gray-600">{formatDate(customer!.createdAt)}</span></p>
+            <div className="flex items-center gap-2 text-gray-800"><strong>Loyalty Points:</strong> <span className="font-bold text-lg text-indigo-600">{customer!.loyaltyPoints ?? 0}</span></div>
         </div>
 
-        {/* Add Membership Action */}
-        {!customer!.currentMembership && (
-          <div className="pt-4 border-t">
-            <button
-              // The button now calls the prop directly with the customer's ID.
-              onClick={() => onGrantMembership(customer!.id)}
-              disabled={isUpdating || !customer}
-              className="w-full text-center py-2.5 px-4 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
-            >
-              {isUpdating ? 'Adding...' : '+ Add Membership'}
-            </button>
-          </div>
-        )}
+        {/* Membership Section */}
+        <div className="pt-4 border-t">
+            {customer!.currentMembership ? (
+                <div>
+                    <h4 className="text-base font-semibold text-gray-800 mb-2">Membership Details</h4>
+                    {customer!.membershipBarcode && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+                           <QrCodeIcon className="w-5 h-5 text-blue-600"/>
+                           <span className="font-mono text-blue-700">{customer!.membershipBarcode}</span>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div>
+                    <button
+                    onClick={() => onGrantMembership(customer!.id)}
+                    disabled={isUpdating || !customer}
+                    className="w-full text-center py-2.5 px-4 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
+                    >
+                    {isUpdating ? 'Adding...' : '+ Grant Membership'}
+                    </button>
+                </div>
+            )}
+        </div>
 
         {/* Appointment History */}
         <div>

@@ -18,7 +18,7 @@ interface AddEditCustomerModalProps {
  * It handles its own form state and API submission.
  */
 const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({ isOpen, onClose, onSave, customerToEdit }) => {
-  const [formData, setFormData] = useState<AddCustomerFormData>({ name: '', email: '', phoneNumber: '' });
+  const [formData, setFormData] = useState<AddCustomerFormData>({ name: '', email: '', phoneNumber: '', gender: 'other' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -28,16 +28,16 @@ const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({ isOpen, onC
   useEffect(() => {
     if (isOpen) {
       if (isEditMode) {
-        setFormData({ name: customerToEdit.name, email: customerToEdit.email, phoneNumber: customerToEdit.phoneNumber });
+        setFormData({ name: customerToEdit.name, email: customerToEdit.email, phoneNumber: customerToEdit.phoneNumber, gender: customerToEdit.gender || 'other' });
       } else {
-        setFormData({ name: '', email: '', phoneNumber: '' });
+        setFormData({ name: '', email: '', phoneNumber: '', gender: 'other' });
       }
       setFormError(null);
       setIsSubmitting(false);
     }
   }, [isOpen, customerToEdit, isEditMode]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -99,6 +99,14 @@ const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({ isOpen, onC
           <div>
             <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
             <input type="tel" name="phoneNumber" id="phoneNumber" value={formData.phoneNumber} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"/>
+          </div>
+           <div>
+            <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+            <select name="gender" id="gender" value={formData.gender} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="other">Other</option>
+            </select>
           </div>
           
           <div className="mt-8 flex justify-end gap-3">

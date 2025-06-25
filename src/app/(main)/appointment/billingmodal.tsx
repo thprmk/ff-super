@@ -263,6 +263,9 @@ const fetchInventoryImpact = async () => {
     if (data.success) {
       setInventoryImpact(data.data);
     }
+
+    console.log('🔥 Inventory impact fetched:', data.data);
+    
   } catch (error) {
     console.error('Failed to fetch inventory impact:', error);
   } finally {

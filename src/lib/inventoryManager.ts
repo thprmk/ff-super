@@ -188,6 +188,9 @@ export class InventoryManager {
       }
     }
 
+    console.log(`Consolidated updates: ${consolidatedUpdates} unique products`);
+    
+
     // Calculate impact for each product
     const impactSummary: InventoryImpact[] = [];
     

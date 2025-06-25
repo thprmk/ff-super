@@ -25,6 +25,9 @@ export function useCrm() {
   const [panelKey, setPanelKey] = useState(0);
   const [isMembershipUpdating, setIsMembershipUpdating] = useState(false);
 
+  console.log(customers," customers in useCrm hook");
+  
+
   // Debounce search term
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -93,7 +96,7 @@ export function useCrm() {
     setPanelKey(prevKey => prevKey + 1); 
     setIsDetailPanelOpen(true);
     setSelectedCustomer(null);
-    const detailedData = await fetchCustomerDetails(customer.id);
+    const detailedData = await fetchCustomerDetails(customer._id);
     setSelectedCustomer(detailedData);
   }, [isDetailPanelOpen, selectedCustomer]);
   

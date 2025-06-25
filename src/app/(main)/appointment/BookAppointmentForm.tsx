@@ -857,6 +857,9 @@ const fetchAndSetCustomerDetails = async (phone: string) => {
         email: cust.email || '',
         gender: cust.gender || 'other' // ADD THIS LINE
       }));
+
+      console.log(cust, 'Customer details fetched successfully');
+      
       setSelectedCustomerDetails(cust);
       setIsCustomerSelected(true);
     } else {

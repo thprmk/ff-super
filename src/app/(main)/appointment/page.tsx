@@ -48,7 +48,7 @@ interface AppointmentWithCustomer {
   amount?: number;
   estimatedDuration?: number;
   actualDuration?: number;
-  
+
   // FIX: Added missing properties to match usage in the component
   appointmentTime?: string;
   billingStaff?: StylistFromAPI;
@@ -267,7 +267,7 @@ export default function AppointmentPage() {
     setStatusFilter(newStatus);
   };
 
-   const canCreateAppointments = session && hasPermission(session.user.role.permissions, PERMISSIONS.APPOINTMENTS_CREATE);
+  const canCreateAppointments = session && hasPermission(session.user.role.permissions, PERMISSIONS.APPOINTMENTS_CREATE);
   const canUpdateAppointments = session && hasPermission(session.user.role.permissions, PERMISSIONS.APPOINTMENTS_UPDATE);
 
 
@@ -281,13 +281,13 @@ export default function AppointmentPage() {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Appointments</h1>
         {canCreateAppointments && (
-            <button
+          <button
             onClick={() => setIsBookAppointmentModalOpen(true)}
             className="px-4 py-2.5 bg-black text-white rounded-lg flex items-center gap-2 hover:bg-gray-800"
-            >
+          >
             <PlusIcon className="h-5 w-5" />
             <span>Book Appointment</span>
-            </button>
+          </button>
         )}
       </div>
 
@@ -422,7 +422,7 @@ export default function AppointmentPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {billingStaffName}
+                        {appointment.billingStaffId?.name ? <>{appointment.billingStaffId?.name}</>:<>-</>}
                       </td>
                       <td className="px-6 py-4">
                         {paymentSummary}
@@ -430,14 +430,14 @@ export default function AppointmentPage() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
                           {canUpdateAppointments && (
-                <button
-                    onClick={() => handleEditAppointment(appointment)}
-                    className="px-3 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded-full hover:bg-blue-200 flex items-center gap-1"
-                >
-                    <PencilIcon className="w-3 h-3" />
-                    Edit
-                </button>
-            )}
+                            <button
+                              onClick={() => handleEditAppointment(appointment)}
+                              className="px-3 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded-full hover:bg-blue-200 flex items-center gap-1"
+                            >
+                              <PencilIcon className="w-3 h-3" />
+                              Edit
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
