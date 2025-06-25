@@ -29,15 +29,10 @@ export default function ServiceManager() {
   const [modalEntityType, setModalEntityType] = useState<EntityType | null>(null);
   const [entityToEdit, setEntityToEdit] = useState<any | null>(null);
 
-  // ** RBAC Permission Checks **
   const canCreate = session && hasPermission(session.user.role.permissions, PERMISSIONS.SERVICES_CREATE);
   const canUpdate = session && hasPermission(session.user.role.permissions, PERMISSIONS.SERVICES_UPDATE);
   const canDelete = session && hasPermission(session.user.role.permissions, PERMISSIONS.SERVICES_DELETE);
 
-  console.log('ServiceManager rendered with audienceFilter:', audienceFilter, 'canCreate:', canCreate, 'canUpdate:', canUpdate, 'canDelete:', canDelete);
-  
-
-  // ... (all data fetching and handler functions remain the same)
   const fetchMainCategories = useCallback(async (audience: AudienceType) => {
     setIsLoadingMain(true);
     setSelectedMainCategory(null); setSelectedSubCategoryId(null);

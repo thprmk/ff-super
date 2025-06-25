@@ -1,4 +1,4 @@
-// models/procurement.ts
+// src/models/Procurement.ts
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IProcurement extends Document {
@@ -26,7 +26,8 @@ const ProcurementSchema = new Schema<IProcurement>({
     date: { type: Date, required: true, default: Date.now },
     vendorName: { type: String, required: true },
     brand: { type: String, required: true },
-    unit: { type: String, required: true, enum: ['kg', 'gram', 'liter', 'ml', 'piece'] },
+    // FIX: Updated enum to be consistent
+    unit: { type: String, required: true, enum: ['kg', 'g', 'l', 'ml', 'piece'] },
     unitPerItem: { type: Number, required: true, min: 0 },
     expiryDate: { type: Date, required: false },
     createdBy: { type: String, required: true },

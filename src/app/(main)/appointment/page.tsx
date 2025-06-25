@@ -422,7 +422,7 @@ export default function AppointmentPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {appointment.billingStaffId?.name ? <>{appointment.billingStaffId?.name}</>:<>-</>}
+                        {appointment.billingStaffId?.name ? <>{appointment.billingStaffId?.name}</> : <>-</>}
                       </td>
                       <td className="px-6 py-4">
                         {paymentSummary}

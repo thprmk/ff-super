@@ -1,4 +1,4 @@
-// models/Product.ts
+// src/models/Product.ts
 import mongoose, { Document, Schema, Model, models } from 'mongoose';
 import { IProductBrand } from './ProductBrand';
 import { IProductSubCategory } from './ProductSubCategory';
@@ -84,7 +84,7 @@ const ProductSchema: Schema<IProduct> = new Schema({
   unit: {
     type: String,
     required: true,
-    enum: ['ml', 'g', 'kg', 'l'],
+    enum: ['ml', 'g', 'kg', 'l', 'piece'], // FIX: Added 'piece'
     trim: true
   },
   stockedDate: {
@@ -93,9 +93,7 @@ const ProductSchema: Schema<IProduct> = new Schema({
   }
 }, { timestamps: true });
 
-// In Product.ts, update the pre-save hook to only calculate on new products
 ProductSchema.pre('save', function(next) {
-  // Only calculate totalQuantity if it's a new product or if numberOfItems changed
   if (this.isNew || this.isModified('numberOfItems') || this.isModified('quantityPerItem')) {
     if (!this.isModified('totalQuantity')) {
       this.totalQuantity = this.numberOfItems * this.quantityPerItem;
@@ -103,6 +101,7 @@ ProductSchema.pre('save', function(next) {
   }
   next();
 });
+
 const ProductModel: Model<IProduct> = models.Product || mongoose.model<IProduct>('Product', ProductSchema);
 
 export default ProductModel;

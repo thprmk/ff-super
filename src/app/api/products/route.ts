@@ -1,14 +1,9 @@
+// src/app/api/products/route.ts (Corrected)
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Product from '@/models/Product';
+import mongoose from 'mongoose';
 
-/**
- * Handles fetching a list of products based on various query parameters.
- * This endpoint is flexible enough to support:
- * 1. Searching for an exact SKU.
- * 2. Searching for products by name.
- * 3. Listing all products belonging to a specific sub-category.
- */
 export async function GET(req: NextRequest) {
   await dbConnect();
   
@@ -17,32 +12,29 @@ export async function GET(req: NextRequest) {
   const subCategoryId = req.nextUrl.searchParams.get('subCategoryId');
 
   try {
-    let query: any = {}; 
+    const query: any = {}; 
 
+    // FIX: Build the query object progressively instead of using mutually exclusive if/else
+    // This ensures that if a subCategoryId is present, it will always be used to filter.
+    if (subCategoryId) {
+      query.subCategory = new mongoose.Types.ObjectId(subCategoryId);
+    }
     if (sku) {
-      // PRIORITY 1: Search by SKU for consumables lookup
-      query = { sku: { $regex: `^${sku}$`, $options: 'i' } };
+      query.sku = { $regex: `^${sku}$`, $options: 'i' };
     } 
-    else if (search) {
-      // PRIORITY 2: Search by name for a general search feature
-      query = { name: { $regex: search, $options: 'i' } };
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
     }
-    else if (subCategoryId) {
-      // PRIORITY 3: List products for the ProductManager's third column
-      query = { subCategory: subCategoryId };
-    }
-    else {
-      // Fallback: Return empty array if no valid parameters are provided
+
+    // If no valid filter is provided, return an empty array.
+    if (Object.keys(query).length === 0) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    // --- THIS IS THE CRUCIAL FIX ---
-    // Execute the find command and then populate the referenced data.
     const products = await Product.find(query)
-      .populate('brand', 'name type') // For the 'brand' field, fetch its 'name' and 'type'
-      .populate('subCategory', 'name') // For the 'subCategory' field, fetch its 'name'
+      .populate('brand', 'name type')
+      .populate('subCategory', 'name')
       .sort({ name: 1 });
-    // --- END OF FIX ---
     
     return NextResponse.json({ success: true, data: products });
 
@@ -52,9 +44,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/**
- * Handles the creation of a new product.
- */
 export async function POST(req: NextRequest) {
   await dbConnect();
   try {
