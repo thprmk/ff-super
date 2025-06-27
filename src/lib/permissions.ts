@@ -1,3 +1,5 @@
+// FILE: src/lib/permissions.ts
+
 export const PERMISSIONS = {
   // User management
   USERS_CREATE: 'users:create',
@@ -26,9 +28,7 @@ export const PERMISSIONS = {
   APPOINTMENTS_UPDATE: 'appointments:update',
   APPOINTMENTS_DELETE: 'appointments:delete',
   APPOINTMENTS_MANAGE: 'appointments:manage',
-
-  // ** NEW PERMISSIONS FOR SHOP MODULE **
-
+  
   // Stylist Management
   STYLISTS_CREATE: 'stylists:create',
   STYLISTS_READ: 'stylists:read',
@@ -47,7 +47,6 @@ export const PERMISSIONS = {
   SERVICES_UPDATE: 'services:update',
   SERVICES_DELETE: 'services:delete',
 
-
   // Dashboard access
   DASHBOARD_READ: 'dashboard:read',
   DASHBOARD_MANAGE: 'dashboard:manage',
@@ -59,16 +58,19 @@ export const PERMISSIONS = {
   DAYEND_DELETE: 'dayend:delete',
   DAYEND_MANAGE: 'dayend:manage',
 
-
   // EB (Electricity Bill) management
   EB_UPLOAD: 'eb:upload',
   EB_VIEW_CALCULATE: 'eb:view_calculate',
 
   // Procurement management
-  PROCUREMENT_CREATE: 'procurement:create', // Create procurement records
-  PROCUREMENT_READ: 'procurement:read',   // View procurement records
-  PROCUREMENT_UPDATE: 'procurement:update', // Update procurement records
-  PROCUREMENT_DELETE: 'procurement:delete', // Delete procurement records
+  PROCUREMENT_CREATE: 'procurement:create',
+  PROCUREMENT_READ: 'procurement:read',
+  PROCUREMENT_UPDATE: 'procurement:update',
+  PROCUREMENT_DELETE: 'procurement:delete',
+
+  // --- 1. ADD NEW SETTINGS PERMISSIONS ---
+  SETTINGS_VIEW: 'settings:view',
+  SETTINGS_EDIT: 'settings:edit',
 
   ALL: '*'
 } as const;
@@ -86,15 +88,17 @@ export const PERMISSION_CATEGORIES = {
   STYLIST_MANAGEMENT: 'Stylist Management',
   PRODUCT_MANAGEMENT: 'Product Management',
   SERVICE_MANAGEMENT: 'Service Management',
+  // You already had this, which is perfect!
   SETTINGS_MANAGEMENT: 'Settings Management',
   REPORTS_ACCESS: 'Reports Access',
   EB_MANAGEMENT: 'EB Management',
-  PROCUREMENT_MANAGEMENT: 'Procurement Management', // New category
+  PROCUREMENT_MANAGEMENT: 'Procurement Management',
   DAYEND_MANAGEMENT: 'Day-end Closing Management'
-
 } as const;
 
 export const ALL_PERMISSIONS = [
+  // ... (User, Role, Customer, Appointment management permissions are unchanged) ...
+
   // User Management
   { permission: PERMISSIONS.USERS_CREATE, description: 'Create new users', category: PERMISSION_CATEGORIES.USER_MANAGEMENT },
   { permission: PERMISSIONS.USERS_READ, description: 'View user information', category: PERMISSION_CATEGORIES.USER_MANAGEMENT },
@@ -122,8 +126,6 @@ export const ALL_PERMISSIONS = [
   { permission: PERMISSIONS.APPOINTMENTS_UPDATE, description: 'Update appointment information', category: PERMISSION_CATEGORIES.APPOINTMENT_MANAGEMENT },
   { permission: PERMISSIONS.APPOINTMENTS_DELETE, description: 'Delete appointments', category: PERMISSION_CATEGORIES.APPOINTMENT_MANAGEMENT },
   { permission: PERMISSIONS.APPOINTMENTS_MANAGE, description: 'Full appointment management access', category: PERMISSION_CATEGORIES.APPOINTMENT_MANAGEMENT },
-
-
 
   // Dashboard Access
   { permission: PERMISSIONS.DASHBOARD_READ, description: 'View dashboard information', category: PERMISSION_CATEGORIES.DASHBOARD_ACCESS },
@@ -164,11 +166,15 @@ export const ALL_PERMISSIONS = [
   { permission: PERMISSIONS.SERVICES_UPDATE, description: 'Update service information', category: PERMISSION_CATEGORIES.SERVICE_MANAGEMENT },
   { permission: PERMISSIONS.SERVICES_DELETE, description: 'Delete services and categories', category: PERMISSION_CATEGORIES.SERVICE_MANAGEMENT },
 
+  // --- 2. ADD NEW SETTINGS PERMISSIONS TO THE MAIN LIST ---
+  { permission: PERMISSIONS.SETTINGS_VIEW, description: 'View application settings', category: PERMISSION_CATEGORIES.SETTINGS_MANAGEMENT },
+  { permission: PERMISSIONS.SETTINGS_EDIT, description: 'Edit application settings (e.g., alert emails)', category: PERMISSION_CATEGORIES.SETTINGS_MANAGEMENT },
 
   // Super Admin
   { permission: PERMISSIONS.ALL, description: 'Full system access (Super Admin)', category: 'System Administration' }
 ];
 
+// ... (helper functions like hasPermission, hasAnyPermission are unchanged)
 export const hasPermission = (userPermissions: string[], requiredPermission: string): boolean => {
   // Super admin has all permissions
   if (userPermissions.includes('*')) return true;
@@ -199,6 +205,7 @@ export const getAllCategories = () => {
   return Object.values(PERMISSION_CATEGORIES);
 };
 
+
 // Predefined role templates
 export const ROLE_TEMPLATES = {
   SUPER_ADMIN: {
@@ -214,16 +221,16 @@ export const ROLE_TEMPLATES = {
       PERMISSIONS.ROLES_READ,
       PERMISSIONS.CUSTOMERS_MANAGE,
       PERMISSIONS.APPOINTMENTS_MANAGE,
-
       PERMISSIONS.DASHBOARD_READ,
-
       PERMISSIONS.EB_VIEW_CALCULATE,
-      PERMISSIONS.PROCUREMENT_CREATE, // Added
-      PERMISSIONS.PROCUREMENT_READ,   // Added
-      PERMISSIONS.PROCUREMENT_UPDATE, // Added
-      PERMISSIONS.PROCUREMENT_DELETE, // Added
-
-      PERMISSIONS.DAYEND_MANAGE
+      PERMISSIONS.PROCUREMENT_CREATE,
+      PERMISSIONS.PROCUREMENT_READ,
+      PERMISSIONS.PROCUREMENT_UPDATE,
+      PERMISSIONS.PROCUREMENT_DELETE,
+      PERMISSIONS.DAYEND_MANAGE,
+      // --- 3. GRANT SETTINGS PERMISSIONS TO THE ADMIN ROLE ---
+      PERMISSIONS.SETTINGS_VIEW,
+      PERMISSIONS.SETTINGS_EDIT,
     ]
   },
   MANAGER: {
@@ -234,14 +241,13 @@ export const ROLE_TEMPLATES = {
       PERMISSIONS.APPOINTMENTS_MANAGE,
       PERMISSIONS.DASHBOARD_READ,
       PERMISSIONS.EB_UPLOAD,
-      PERMISSIONS.PROCUREMENT_CREATE, // Added
-      PERMISSIONS.PROCUREMENT_READ,   // Added
-      PERMISSIONS.PROCUREMENT_UPDATE, // Added
-      PERMISSIONS.PROCUREMENT_DELETE,  // Added
-
-      PERMISSIONS.DAYEND_CREATE, // Added
-      PERMISSIONS.DAYEND_READ,   // Added
-      PERMISSIONS.DAYEND_UPDATE  // Added
+      PERMISSIONS.PROCUREMENT_CREATE,
+      PERMISSIONS.PROCUREMENT_READ,
+      PERMISSIONS.PROCUREMENT_UPDATE,
+      PERMISSIONS.PROCUREMENT_DELETE,
+      PERMISSIONS.DAYEND_CREATE,
+      PERMISSIONS.DAYEND_READ,
+      PERMISSIONS.DAYEND_UPDATE
     ]
   },
   STAFF: {
@@ -254,7 +260,7 @@ export const ROLE_TEMPLATES = {
       PERMISSIONS.APPOINTMENTS_UPDATE,
       PERMISSIONS.DASHBOARD_READ,
       PERMISSIONS.PROCUREMENT_READ,
-      PERMISSIONS.DAYEND_READ // Added
+      PERMISSIONS.DAYEND_READ
     ]
   },
   RECEPTIONIST: {
@@ -265,13 +271,13 @@ export const ROLE_TEMPLATES = {
       PERMISSIONS.APPOINTMENTS_MANAGE,
       PERMISSIONS.DASHBOARD_READ,
       PERMISSIONS.EB_UPLOAD,
-      PERMISSIONS.DAYEND_CREATE, // Added
+      PERMISSIONS.DAYEND_CREATE,
       PERMISSIONS.DAYEND_READ
     ]
   }
 };
 
-// Type definitions for better TypeScript support
+// Type definitions (unchanged)
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 export type PermissionCategory = typeof PERMISSION_CATEGORIES[keyof typeof PERMISSION_CATEGORIES];
 

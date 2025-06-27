@@ -2,18 +2,20 @@
 
 import nodemailer from 'nodemailer';
 import { format } from 'date-fns';
+import dbConnect from '@/lib/dbConnect';
+import Setting from '@/models/Setting';
 
-// 1. Define the type for our report data for strong typing
+// Define the type for our report data (No changes here)
 interface DayEndReportData {
   closingDate: string;
   expectedTotals: { cash: number; card: number; upi: number; };
   actualTotals: { cash: number; card: number; upi: number; };
-  discrepancies: { cash: number; card: number; upi: number; };
+  discrepancies: { cash: number; card: number; upi: number; total: number; };
   cashDenominations: { [key: string]: number; };
   notes: string;
 }
 
-// 2. Create the transporter (No changes here)
+// Create the transporter (No changes here)
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_SERVER_HOST,
     port: Number(process.env.EMAIL_SERVER_PORT),
@@ -24,21 +26,41 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// 3. sendClosingReportEmail function (No changes here)
+// --- FINAL UPDATED FUNCTION ---
 export async function sendClosingReportEmail(reportData: DayEndReportData) {
-    const emailHtml = createEmailHtml(reportData);
-    const formattedDate = format(new Date(reportData.closingDate + 'T00:00:00'), 'MMMM dd, yyyy');
-
-    const mailOptions = {
-        from: process.env.EMAIL_FROM,
-        to: process.env.SUPER_ADMIN_EMAIL, // Using the plural variable for future-proofing
-        subject: `Day-End Closing Report for ${formattedDate}`,
-        html: emailHtml,
-    };
-
     try {
+        await dbConnect();
+
+        // CHANGE 1: Use the new, more descriptive settings key
+        const settingKey = 'dayEndReportRecipients';
+        const settingDoc = await Setting.findOne({ key: settingKey });
+
+        // The value from the DB will be an array of emails
+        const recipientEmails = settingDoc?.value;
+
+        // CHANGE 2: Your check is already correct, but let's refine the log message.
+        if (!Array.isArray(recipientEmails) || recipientEmails.length === 0) {
+            console.log(`No recipients configured for '${settingKey}'. Skipping day-end report email.`);
+            return;
+        }
+
+        // --- The rest of the function is perfect ---
+        const emailHtml = createEmailHtml(reportData);
+        const formattedDate = format(new Date(reportData.closingDate + 'T00:00:00'), 'MMMM dd, yyyy');
+
+        const mailOptions = {
+            from: `"${process.env.EMAIL_FROM_NAME || 'Fresh-Face System'}" <${process.env.EMAIL_FROM}>`,
+            // Nodemailer natively supports sending to an array of recipients. No changes needed here.
+            to: recipientEmails,
+            subject: `Day-End Closing Report for ${formattedDate}`,
+            html: emailHtml,
+        };
+    
         await transporter.sendMail(mailOptions);
-        console.log(`Day-end report email sent successfully to ${process.env.SUPER_ADMIN_EMAILS}`);
+        
+        // CHANGE 3: Improve the success log to show the list of recipients
+        console.log(`Day-end report email sent successfully to: ${recipientEmails.join(', ')}`);
+
     } catch (error) {
         console.error("Failed to send day-end report email:", error);
         throw new Error("Failed to send confirmation email.");
@@ -46,7 +68,7 @@ export async function sendClosingReportEmail(reportData: DayEndReportData) {
 }
 
 
-// 4. The HTML creation function is where we make the changes.
+// The HTML creation function (No changes needed, it's perfect)
 function createEmailHtml(report: DayEndReportData): string {
     const { closingDate, expectedTotals, actualTotals, discrepancies, notes, cashDenominations } = report;
     
@@ -68,12 +90,12 @@ function createEmailHtml(report: DayEndReportData): string {
         `;
     };
 
-    // --- ADDITION 1: Calculate the grand totals ---
     const expectedGrandTotal = expectedTotals.cash + expectedTotals.card + expectedTotals.upi;
     const actualGrandTotal = actualTotals.cash + actualTotals.card + actualTotals.upi;
     const totalDiscrepancy = actualGrandTotal - expectedGrandTotal;
 
     const denominationDetails = Object.entries(cashDenominations)
+        .filter(([, count]) => count > 0)
         .map(([key, count]) => `<li>₹${key.replace('d', '')}: ${count} notes/coins</li>`)
         .join('');
 
@@ -97,7 +119,6 @@ function createEmailHtml(report: DayEndReportData): string {
                     ${renderRow('Card', expectedTotals.card, actualTotals.card, discrepancies.card)}
                     ${renderRow('UPI', expectedTotals.upi, actualTotals.upi, discrepancies.upi)}
                 </tbody>
-                <!-- --- ADDITION 2: The new table footer with the grand totals --- -->
                 <tfoot style="border-top: 2px solid #333; font-weight: bold;">
                     <tr>
                         <td style="padding: 8px; border: 1px solid #ddd;">Grand Total</td>

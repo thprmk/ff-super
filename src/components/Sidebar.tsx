@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { hasAnyPermission, PERMISSIONS } from '@/lib/permissions'; // Use hasAnyPermission
+import { hasAnyPermission, PERMISSIONS } from '@/lib/permissions';
 import {
   HomeIcon,
   CalendarDaysIcon,
   UserGroupIcon,
-  CreditCardIcon,
+  CreditCardIcon, // This seems unused, can be removed if you like
   UsersIcon,
   CogIcon,
   PowerIcon,
@@ -16,7 +16,8 @@ import {
   DocumentTextIcon,
   ShoppingCartIcon,
   BuildingStorefrontIcon,
-  BanknotesIcon
+  BanknotesIcon,
+  BellAlertIcon, // <-- 1. IMPORT THE NEW ICON
 } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
@@ -33,35 +34,33 @@ const Sidebar = () => {
 
   const userPermissions = session?.user?.role?.permissions || [];
 
-  // --- CORRECTED PERMISSION CHECKS ---
-  // A user can see the module if they have ANY permission related to it.
   const canAccessDashboard = hasAnyPermission(userPermissions, [PERMISSIONS.DASHBOARD_READ, PERMISSIONS.DASHBOARD_MANAGE]);
   const canAccessAppointments = hasAnyPermission(userPermissions, [PERMISSIONS.APPOINTMENTS_READ, PERMISSIONS.APPOINTMENTS_CREATE, PERMISSIONS.APPOINTMENTS_UPDATE, PERMISSIONS.APPOINTMENTS_DELETE]);
   const canAccessCustomers = hasAnyPermission(userPermissions, [PERMISSIONS.CUSTOMERS_READ, PERMISSIONS.CUSTOMERS_CREATE, PERMISSIONS.CUSTOMERS_UPDATE, PERMISSIONS.CUSTOMERS_DELETE]);
-  
-  // The Shop module is visible if the user can read ANY of its sub-modules.
   const canAccessShop = hasAnyPermission(userPermissions, [PERMISSIONS.PRODUCTS_READ, PERMISSIONS.SERVICES_READ, PERMISSIONS.STYLISTS_READ]);
-  
   const canAccessEBUpload = hasAnyPermission(userPermissions, [PERMISSIONS.EB_UPLOAD]);
   const canAccessEBViewCalculate = hasAnyPermission(userPermissions, [PERMISSIONS.EB_VIEW_CALCULATE]);
   const canAccessProcurement = hasAnyPermission(userPermissions, [PERMISSIONS.PROCUREMENT_READ, PERMISSIONS.PROCUREMENT_CREATE, PERMISSIONS.PROCUREMENT_UPDATE, PERMISSIONS.PROCUREMENT_DELETE]);
   const canAccessDayEnd = hasAnyPermission(userPermissions, [PERMISSIONS.DAYEND_READ, PERMISSIONS.DAYEND_CREATE]);
 
+  // --- 2. ADD PERMISSION CHECK FOR THE NEW ALERTS PAGE ---
+  const canAccessAlerts = hasAnyPermission(userPermissions, [PERMISSIONS.SETTINGS_VIEW, PERMISSIONS.SETTINGS_EDIT]);
 
-  // Admin section visibility
   const canAccessAdmin = hasAnyPermission(userPermissions, [PERMISSIONS.USERS_READ, PERMISSIONS.ROLES_READ]);
   const canAccessUsers = hasAnyPermission(userPermissions, [PERMISSIONS.USERS_READ]);
   const canAccessRoles = hasAnyPermission(userPermissions, [PERMISSIONS.ROLES_READ]);
   
+  // --- 3. ADD THE NEW ITEM TO THE NAVITEMS ARRAY ---
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: HomeIcon, show: canAccessDashboard },
     { href: '/appointment', label: 'Appointments', icon: CalendarDaysIcon, show: canAccessAppointments },
     { href: '/crm', label: 'Customers', icon: UserGroupIcon, show: canAccessCustomers },
     { href: '/shop', label: 'Shop', icon: BuildingStorefrontIcon, show: canAccessShop },
+    { href: '/DayendClosing', label:'Day-end Closing', icon:BanknotesIcon, show: canAccessDayEnd },
+    { href: '/alerts', label: 'Alerts', icon: BellAlertIcon, show: canAccessAlerts }, // New Item Added Here
+    { href: '/procurement', label: 'Procurements', icon: ShoppingCartIcon, show: canAccessProcurement },
     { href: '/eb-upload', label: 'EB Upload', icon: LightBulbIcon, show: canAccessEBUpload },
     { href: '/eb-view', label: 'EB View & Calculate', icon: DocumentTextIcon, show: canAccessEBViewCalculate },
-    { href: '/procurement', label: 'Procurements', icon: ShoppingCartIcon, show: canAccessProcurement },
-    { href:'/DayendClosing', label:'Day-end Closing', icon:BanknotesIcon, show: canAccessDayEnd }
   ];
 
   const adminItems = [
