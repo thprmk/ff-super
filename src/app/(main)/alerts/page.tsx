@@ -29,178 +29,185 @@ const Toast = ({ message, show, isError }: { message: string, show: boolean, isE
   );
 };
 
-
 export default function AlertsPage() {
-  const [emails, setEmails] = useState<string[]>([]);
-  const [currentEmailInput, setCurrentEmailInput] = useState('');
+  // --- STATE FOR ALL SETTINGS ---
+  // Global UI State
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState({ message: '', show: false, isError: false });
 
-  const settingKey = 'dayEndReportRecipients'; // Using a plural key now
+  // State for Day-End Report
+  const [dayEndRecipients, setDayEndRecipients] = useState<string[]>([]);
+  const [newDayEndRecipient, setNewDayEndRecipient] = useState('');
+  const [isDayEndSaving, setIsDayEndSaving] = useState(false);
 
-  // --- 1. Fetch existing emails from the API ---
+  // State for Low Stock Alerts
+  const [lowStockThreshold, setLowStockThreshold] = useState('');
+  const [lowStockRecipients, setLowStockRecipients] = useState<string[]>([]);
+  const [newLowStockRecipient, setNewLowStockRecipient] = useState('');
+  const [isLowStockSaving, setIsLowStockSaving] = useState(false);
+
+
+  // --- DATA FETCHING ---
   useEffect(() => {
-    const fetchSettings = async () => {
+    const fetchAllSettings = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/settings/${settingKey}`);
-        const data = await response.json();
-        if (data.success && Array.isArray(data.setting.value)) {
-          setEmails(data.setting.value);
-        }
+        // Fetch all three settings at the same time
+        const [dayEndRes, thresholdRes, lowStockRecipientsRes] = await Promise.all([
+          fetch('/api/settings/dayEndReportRecipients'),
+          fetch('/api/settings/globalLowStockThreshold'),
+          fetch('/api/settings/inventoryAlertRecipients')
+        ]);
+
+        const dayEndData = await dayEndRes.json();
+        const thresholdData = await thresholdRes.json();
+        const lowStockRecipientsData = await lowStockRecipientsRes.json();
+        
+        if (dayEndData.success) setDayEndRecipients(dayEndData.setting.value || []);
+        if (thresholdData.success) setLowStockThreshold(thresholdData.setting.value || '10'); // Default to 10
+        if (lowStockRecipientsData.success) setLowStockRecipients(lowStockRecipientsData.setting.value || []);
+
       } catch (error) {
         console.error("Error fetching settings:", error);
+        showToast("Failed to load settings from server.", true);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchSettings();
-  }, [settingKey]);
+    fetchAllSettings();
+  }, []); // Empty dependency array means this runs only once on page load
 
   const showToast = (message: string, isError = false) => {
     setToast({ message, show: true, isError });
     setTimeout(() => setToast({ message: '', show: false, isError: false }), 3000);
   };
 
-  // --- 2. Logic to add a new email to the list ---
-  const handleAddEmail = () => {
-    // Basic email validation
-    if (!/^\S+@\S+\.\S+$/.test(currentEmailInput)) {
-      showToast("Please enter a valid email address.", true);
-      return;
-    }
-    // Check for duplicates
-    if (emails.includes(currentEmailInput)) {
-      showToast("This email has already been added.", true);
-      setCurrentEmailInput('');
-      return;
-    }
-    // Check for limit
-    if (emails.length >= 5) {
-      showToast("You can add a maximum of 5 emails.", true);
-      return;
-    }
-    setEmails([...emails, currentEmailInput]);
-    setCurrentEmailInput(''); // Clear the input field
+
+  // --- HANDLERS FOR DAY-END REPORT ---
+  const handleAddDayEndEmail = () => {
+    if (!/^\S+@\S+\.\S+$/.test(newDayEndRecipient)) { showToast("Please enter a valid email.", true); return; }
+    if (dayEndRecipients.includes(newDayEndRecipient)) { showToast("This email is already added.", true); return; }
+    if (dayEndRecipients.length >= 5) { showToast("You can add a maximum of 5 emails.", true); return; }
+    setDayEndRecipients([...dayEndRecipients, newDayEndRecipient]);
+    setNewDayEndRecipient('');
   };
 
-  // --- 3. Logic to remove an email from the list ---
-  const handleRemoveEmail = (emailToRemove: string) => {
-    setEmails(emails.filter((email) => email !== emailToRemove));
-  };
+  const handleRemoveDayEndEmail = (email: string) => setDayEndRecipients(dayEndRecipients.filter(e => e !== email));
 
-  // --- 4. Logic to save the list of emails to the database ---
-  const handleSaveSettings = async (e: FormEvent) => {
+  const handleSaveDayEndSettings = async (e: FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
+    setIsDayEndSaving(true);
     try {
-      const response = await fetch(`/api/settings/${settingKey}`, {
+      const res = await fetch('/api/settings/dayEndReportRecipients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: emails }),
+        body: JSON.stringify({ value: dayEndRecipients }),
       });
-      const data = await response.json();
-      if (data.success) {
-        showToast("Settings saved successfully!");
-      } else {
-        showToast(data.message || "Failed to save settings.", true);
-      }
+      const data = await res.json();
+      data.success ? showToast("Day-End settings saved!") : showToast(data.message, true);
     } catch (error) {
       showToast("An error occurred while saving.", true);
-      console.error("Error saving settings:", error);
     } finally {
-      setIsSaving(false);
+      setIsDayEndSaving(false);
     }
   };
 
+
+  // --- HANDLERS FOR LOW STOCK ALERT ---
+  const handleAddLowStockEmail = () => {
+    if (!/^\S+@\S+\.\S+$/.test(newLowStockRecipient)) { showToast("Please enter a valid email.", true); return; }
+    if (lowStockRecipients.includes(newLowStockRecipient)) { showToast("This email is already added.", true); return; }
+    if (lowStockRecipients.length >= 5) { showToast("You can add a maximum of 5 emails.", true); return; }
+    setLowStockRecipients([...lowStockRecipients, newLowStockRecipient]);
+    setNewLowStockRecipient('');
+  };
+
+  const handleRemoveLowStockEmail = (email: string) => setLowStockRecipients(lowStockRecipients.filter(e => e !== email));
+
+  const handleSaveLowStockSettings = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsLowStockSaving(true);
+    try {
+      // Save both settings at the same time
+      const [thresholdRes, recipientsRes] = await Promise.all([
+        fetch('/api/settings/globalLowStockThreshold', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: lowStockThreshold }),
+        }),
+        fetch('/api/settings/inventoryAlertRecipients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: lowStockRecipients }),
+        })
+      ]);
+
+      (thresholdRes.ok && recipientsRes.ok)
+        ? showToast("Low stock settings saved successfully!")
+        : showToast("Failed to save one or more low stock settings.", true);
+    } catch (error) {
+      showToast("An error occurred while saving.", true);
+    } finally {
+      setIsLowStockSaving(false);
+    }
+  };
+
+
   if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center p-6">
-        <p className="text-gray-500">Loading Alert Settings...</p>
-      </div>
-    );
+    return <div className="p-6 text-center text-gray-500">Loading Alert Settings...</div>;
   }
   
   return (
     <>
       <div className="p-4 sm:p-6 bg-gray-50 min-h-full">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800 mb-6">Alert Management</h1>
+        <div className="max-w-4xl mx-auto space-y-8">
+          <h1 className="text-2xl font-bold text-gray-800">Alert Management</h1>
 
-          {/* --- Day-End Summary Section --- */}
+          {/* --- Card 1: Day-End Summary Section --- */}
           <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">Day-End Summary Report</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Add up to 5 email addresses to receive the daily closing report.
-            </p>
-
-            <form onSubmit={handleSaveSettings}>
-              {/* --- Email Input Group --- */}
+            <form onSubmit={handleSaveDayEndSettings}>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">Day-End Summary Report</h2>
+              <p className="text-sm text-gray-500 mb-4">Add up to 5 email addresses to receive the daily closing report.</p>
               <div className="flex items-center gap-2 mb-4">
-                <input
-                  type="email"
-                  value={currentEmailInput}
-                  onChange={(e) => setCurrentEmailInput(e.target.value)}
-                  placeholder="e.g., manager@example.com"
-                  className="flex-grow rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddEmail}
-                  disabled={emails.length >= 5}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  Add
-                </button>
+                <input type="email" value={newDayEndRecipient} onChange={(e) => setNewDayEndRecipient(e.target.value)} placeholder="e.g., manager@example.com" className="flex-grow rounded-md border-gray-300 shadow-sm" />
+                <button type="button" onClick={handleAddDayEndEmail} className="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm">Add</button>
               </div>
-
-              {/* --- List of Added Emails --- */}
-              <div className="space-y-2 mb-6">
-                {emails.map((email) => (
-                  <div
-                    key={email}
-                    className="flex items-center justify-between bg-gray-100 p-2 rounded-md"
-                  >
-                    <span className="text-sm text-gray-800">{email}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveEmail(email)}
-                      className="p-1 text-gray-500 hover:text-red-600 rounded-full hover:bg-gray-200"
-                      aria-label={`Remove ${email}`}
-                    >
-                      <XIcon />
-                    </button>
-                  </div>
+              <div className="space-y-2 mb-6 min-h-[40px]">
+                {dayEndRecipients.map((email) => (
+                  <div key={email} className="flex items-center justify-between bg-gray-100 p-2 rounded-md"><span className="text-sm text-gray-800">{email}</span><button type="button" onClick={() => handleRemoveDayEndEmail(email)} className="p-1 text-gray-500 hover:text-red-600"><XIcon /></button></div>
                 ))}
-                {emails.length === 0 && (
-                   <p className="text-center text-sm text-gray-400 py-3">No recipient emails added yet.</p>
-                )}
               </div>
-
-              {/* --- Save Button --- */}
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-6 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400"
-                >
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
+              <div className="flex justify-end"><button type="submit" disabled={isDayEndSaving} className="px-6 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm disabled:bg-gray-400">{isDayEndSaving ? 'Saving...' : 'Save Changes'}</button></div>
             </form>
           </div>
 
-          {/* --- You can add the Low Stock Alert section here later --- */}
-          {/* 
-          <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">Low Stock Alerts</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Configure low stock notification settings. (Coming soon)
-            </p>
-          </div>
-          */}
+          {/* --- Card 2: Low Stock Alert Section --- */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <form onSubmit={handleSaveLowStockSettings}>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">Low Stock Alerts</h2>
+              <p className="text-sm text-gray-500 mb-6">Configure the global threshold and email recipients for low inventory notifications.</p>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Global Low Stock Threshold</label>
+                <input type="number" value={lowStockThreshold} onChange={(e) => setLowStockThreshold(e.target.value)} placeholder="e.g., 10" className="flex-grow rounded-md border-gray-300 shadow-sm w-full" required />
+              </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Alert Recipients</label>
+                <div className="flex items-center gap-2 mb-4">
+                  <input type="email" value={newLowStockRecipient} onChange={(e) => setNewLowStockRecipient(e.target.value)} placeholder="e.g., manager@example.com" className="flex-grow rounded-md border-gray-300 shadow-sm" />
+                  <button type="button" onClick={handleAddLowStockEmail} className="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm">Add</button>
+                </div>
+                <div className="space-y-2 mb-6 min-h-[40px]">
+                  {lowStockRecipients.map((email) => (
+                    <div key={email} className="flex items-center justify-between bg-gray-100 p-2 rounded-md"><span className="text-sm text-gray-800">{email}</span><button type="button" onClick={() => handleRemoveLowStockEmail(email)} className="p-1 text-gray-500 hover:text-red-600"><XIcon /></button></div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end border-t pt-4"><button type="submit" disabled={isLowStockSaving} className="px-6 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm disabled:bg-gray-400">{isLowStockSaving ? 'Saving...' : 'Save Changes'}</button></div>
+            </form>
+          </div>
         </div>
       </div>
       <Toast message={toast.message} show={toast.show} isError={toast.isError} />

@@ -1,6 +1,8 @@
-// src/lib/inventoryManager.ts
-import Product from '@/models/Product';
+// FILE: src/lib/inventoryManager.ts
+
+import Product, { IProduct } from '@/models/Product';
 import ServiceItem from '@/models/ServiceItem';
+import Setting from '@/models/Setting';
 
 export interface InventoryUpdate {
   productId: string;
@@ -48,8 +50,17 @@ export class InventoryManager {
   static async applyInventoryUpdates(updates: InventoryUpdate[]): Promise<{
     success: boolean;
     errors: string[];
+    lowStockProducts: IProduct[];
   }> {
     const errors: string[] = [];
+    const lowStockProducts: IProduct[] = [];
+
+    const thresholdSetting = await Setting.findOne({ key: 'globalLowStockThreshold' }).lean();
+    let globalThreshold = thresholdSetting ? parseInt(thresholdSetting.value, 10) : 10;
+    if (isNaN(globalThreshold)) {
+        globalThreshold = 10;
+    }
+
     for (const update of updates) {
       try {
         const product = await Product.findById(update.productId);
@@ -58,19 +69,17 @@ export class InventoryManager {
           continue;
         }
 
-        // --- NEW LOGIC ---
+        // Deduction Logic
         if (product.unit === 'piece') {
-          // Handle item-based deduction (decrement numberOfItems)
           if (product.numberOfItems < update.quantityToDeduct) {
-            errors.push(`Insufficient stock for ${product.name}. Required: ${update.quantityToDeduct}, Available: ${product.numberOfItems}`);
+            errors.push(`Insufficient stock for ${product.name}.`);
             continue;
           }
           product.numberOfItems -= update.quantityToDeduct;
-          product.totalQuantity = product.numberOfItems * product.quantityPerItem; // Recalculate total
+          product.totalQuantity = product.numberOfItems * product.quantityPerItem;
         } else {
-          // Handle unit-based deduction (decrement totalQuantity)
           if (product.totalQuantity < update.quantityToDeduct) {
-            errors.push(`Insufficient stock for ${product.name}. Required: ${update.quantityToDeduct}${product.unit}, Available: ${product.totalQuantity}${product.unit}`);
+            errors.push(`Insufficient stock for ${product.name}.`);
             continue;
           }
           product.totalQuantity -= update.quantityToDeduct;
@@ -78,15 +87,27 @@ export class InventoryManager {
             product.numberOfItems = Math.floor(product.totalQuantity / product.quantityPerItem);
           }
         }
-        // --- END NEW LOGIC ---
-
+        
         await product.save();
+
+        // +++ FINAL CORRECTED ALERT LOGIC +++
+        // We only check if the new stock is low. We don't care what it was before.
+        const isNowLow = product.numberOfItems <= globalThreshold;
+        
+        if (isNowLow) {
+          lowStockProducts.push(product);
+        }
 
       } catch (error: any) {
         errors.push(`Failed to update product ${update.productName}: ${error.message}`);
       }
     }
-    return { success: errors.length === 0, errors };
+    
+    return { 
+        success: errors.length === 0, 
+        errors, 
+        lowStockProducts
+    };
   }
 
   static async calculateMultipleServicesInventoryImpact(
